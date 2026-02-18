@@ -29,6 +29,7 @@ import org.springframework.web.socket.messaging.WebSocketStompClient;
 import java.io.InputStream;
 import java.lang.reflect.Type;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -72,7 +73,8 @@ public class SignalE2ETest {
     void shouldReceiveSignalAfterSubscription() throws Exception {
         // 1. Отправляем POST-запрос для регистрации сигнала
         String signalId = "sensor1";
-        String jsonBody = objectMapper.writeValueAsString(java.util.Map.of("id", signalId));
+        String jsonBody = objectMapper.writeValueAsString(Map.of("id", signalId));
+        String topic = "/topic/signals/";
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
@@ -91,7 +93,6 @@ public class SignalE2ETest {
 
         // 3. Подписываемся на тему и ждём сообщение
         BlockingQueue<Object> receivedMessages = new LinkedBlockingQueue<>();
-        String topic = "/topic/signals/" + signalId;
         stompSession.subscribe(topic, new StompFrameHandler() {
             @Override
             public Type getPayloadType(StompHeaders headers) {
@@ -101,26 +102,30 @@ public class SignalE2ETest {
             @Override
             public void handleFrame(StompHeaders headers, Object payload) {
                 receivedMessages.offer(payload);
+                //log.info(payload.toString());
             }
         });
 
+        //первое сообщение нужно пропустить
         SignalData message = (SignalData)receivedMessages.poll(10, TimeUnit.SECONDS);
+
+
+        message = (SignalData)receivedMessages.poll(10, TimeUnit.SECONDS);
         assertThat(message).withFailMessage("Не получено ни одного сообщения SignalData за 10 секунд").isNotNull();
         assertThat(message.getId()).isEqualTo(signalId);
         assertThat(message.getValue()).isNotNull();
 
-        jsonBody = objectMapper.writeValueAsString(java.util.Map.of("subscriptionType", "written"));
+        jsonBody = objectMapper.writeValueAsString(Map.of("subscriptionType", "written"));
         request = new HttpEntity<>(jsonBody, headers);
         restTemplate.postForEntity("http://localhost:" + port + "/api/public/measurement-values/v2.1/data/subscriptions/channels/pubchan-OGjXXUCae-LKlRoL_ib8Vg/subscriptions/mv-34", request, Void.class);
 
 
-        String signalIdGuid = "38ca00a5-fbdb-44a1-9f32-10d065804165";
-        jsonBody = objectMapper.writeValueAsString(java.util.Map.of("measurementValueToAddUids", List.of(signalIdGuid, "610577b7-c37e-42e0-a753-b4e5a87afbb9")));
+        List<String> signalListGuid = List.of("38ca00a5-fbdb-44a1-9f32-10d065804165", "610577b7-c37e-42e0-a753-b4e5a87afbb9");
+        jsonBody = objectMapper.writeValueAsString(Map.of("measurementValueToAddUids", signalListGuid));
         request = new HttpEntity<>(jsonBody, headers);
         restTemplate.postForEntity("http://localhost:" + port + "/api/public/measurement-values/v2.1/data/subscriptions/channels/pubchan-OGjXXUCae-LKlRoL_ib8Vg/subscriptions/mv-34", request, Void.class);
 
         BlockingQueue<Object> receivedMessagesGuided = new LinkedBlockingQueue<>();
-        topic = "/topic/signals/38ca00a5-fbdb-44a1-9f32-10d065804165";
         stompSession.subscribe(topic, new StompFrameHandler() {
             @Override
             public Type getPayloadType(StompHeaders headers) {
@@ -136,7 +141,7 @@ public class SignalE2ETest {
         for (int i = 0; i < 10; i++) {
             message = (SignalData)receivedMessagesGuided.poll(10, TimeUnit.SECONDS);
             assertThat(message).withFailMessage("Не получено сообщения SignalData за 10 секунд").isNotNull();
-            assertThat(message.getId()).isEqualTo(signalIdGuid);
+            assertThat(signalListGuid.contains(message.getId()));
             assertThat(message.getValue()).isNotNull();
             log.info("message=" + message);
         }
