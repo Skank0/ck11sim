@@ -50,15 +50,16 @@ public class RestControllerCk11 {
     }
 
 
+    //todo: port to autowired
     @GetMapping("/api/public/core/v2.1/addresses")
     public ResponseEntity<String> getAddresses() {
         return sendJsonAnswer("../../13 linux/00_helps/server_answers/addresses.json",
-                "https://app-p-srv-balt.oducz.so:9443",
-                "http://10.31.224.135:8080");
+                List.of("https://app-p-srv-balt.oducz.so:9443", "https://app-p-srv-balt.oducz.so"),
+                List.of("http://10.31.224.135:8080", "http://10.31.224.135:8080"));
     }
 
-    @GetMapping("/auth/app/token")
-    public ResponseEntity<String> getToken() {
+    @PostMapping("/auth/app/token")
+    public ResponseEntity<String> getToken(@RequestBody Map<String, Object> payload) {
         return sendJsonAnswer("../../13 linux/00_helps/server_answers/token.json");
     }
 
@@ -97,12 +98,14 @@ public class RestControllerCk11 {
 
 
     //отправка ответом json-файла
-    static ResponseEntity<String> sendJsonAnswer(String pathname, String whatReplace, String newValue) {
+    static ResponseEntity<String> sendJsonAnswer(String pathname, List<String> whatReplace, List<String> newValue) {
         try {
             File file = new File(pathname);
             String jsonContent = Files.readString(Path.of(file.getAbsolutePath()));
-            if (!whatReplace.isEmpty()) {
-                jsonContent = jsonContent.replace(whatReplace, newValue);
+            if (whatReplace != null && !whatReplace.isEmpty() && whatReplace.size() == newValue.size()) {
+                for (int i = 0; i < whatReplace.size() && i < newValue.size(); i++) {
+                    jsonContent = jsonContent.replace(whatReplace.get(i), newValue.get(i));
+                }
             }
             return ResponseEntity.ok()
                     .header("Content-Type", "application/json; charset=utf-8")
@@ -113,6 +116,6 @@ public class RestControllerCk11 {
     }
 
     static ResponseEntity<String> sendJsonAnswer(String pathname) {
-        return sendJsonAnswer(pathname, "", "");
+        return sendJsonAnswer(pathname, null, null);
     }
 }
