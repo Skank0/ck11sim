@@ -1,6 +1,8 @@
 package com.ntcees.websocketdemo.controller;
 
 import com.ntcees.websocketdemo.model.SignalData;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationListener;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -15,10 +17,13 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static java.lang.System.*;
+
 @Controller
 @EnableWebSocketMessageBroker
 public class WebSocketController implements ApplicationListener<org.springframework.context.event.ContextRefreshedEvent> {
 
+    private static final Logger log = LoggerFactory.getLogger(WebSocketController.class);
     @Autowired
     private SimpMessagingTemplate messagingTemplate;
 
@@ -35,7 +40,7 @@ public class WebSocketController implements ApplicationListener<org.springframew
 
     private void generateSignals() {
         activeSignals.keySet().forEach(id -> {
-            double newValue = Math.sin(System.currentTimeMillis() / 1000.0 + counter.getAndIncrement()) * 100;
+            double newValue = Math.sin(currentTimeMillis() / 1000.0 + counter.getAndIncrement()) * 100;
             activeSignals.put(id, newValue);
             SignalData data = new SignalData(id, newValue);
             messagingTemplate.convertAndSend("/topic/signals/" + id, data);
@@ -53,5 +58,6 @@ public class WebSocketController implements ApplicationListener<org.springframew
     @Override
     public void onApplicationEvent(org.springframework.context.event.ContextRefreshedEvent event) {
         // Инициализация после старта контекста
+        log.info("onApplicationEvent");
     }
 }
