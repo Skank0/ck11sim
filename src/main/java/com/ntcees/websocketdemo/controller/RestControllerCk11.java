@@ -11,6 +11,8 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
+import java.util.Map;
 
 @RestController
 public class RestControllerCk11 {
@@ -68,8 +70,27 @@ public class RestControllerCk11 {
         return sendJsonAnswer("../../13 linux/00_helps/server_answers/multi_meter_interval_request.json");
     }
 
+    @PostMapping("/api/public/measurement-values/v2.1/data/subscriptions/channels/pubchan-OGjXXUCae-LKlRoL_ib8Vg/subscriptions/mv-34")
+    //todo: сделать генерацию измерений
+    //todo: сделать добавление uid в список для рассылки
+    public ResponseEntity<String> createSubscription(@RequestBody Map<String, Object> payload) {
+        if (payload.containsKey("subscriptionType")) {
+            return sendJsonAnswer("../../13 linux/00_helps/server_answers/create_subscription_result.json");
+        } else if (payload.containsKey("measurementValueToAddUids")) {
+            List<String> list = (List<String>)payload.get("measurementValueToAddUids");
+            for (String element : list) {
+                wsController.addSignal(element);
+            }
+            return sendJsonAnswer("../../13 linux/00_helps/server_answers/meter_result.json");
+        } else {
+            return ResponseEntity.badRequest().body("Неизвестный формат запроса");
+        }
+    }
+
+
+
     //отправка ответом json-файла
-    private static ResponseEntity<String> sendJsonAnswer(String pathname) {
+    static ResponseEntity<String> sendJsonAnswer(String pathname) {
         try {
             File file = new File(pathname);
             String jsonContent = Files.readString(Path.of(file.getAbsolutePath()));

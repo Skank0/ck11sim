@@ -21,4 +21,9 @@ public class SignalData {
     public void setValue(double value) { this.value = value; }
     public long getTimestamp() { return timestamp; }
     public void setTimestamp(long timestamp) { this.timestamp = timestamp; }
+
+    @Override
+    public String toString() {
+        return "SignalData[" + id + "]=" + value + " t=" + timestamp;
+    }
 }

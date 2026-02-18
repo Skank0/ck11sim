@@ -18,7 +18,7 @@
 <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
 
 <script>
-    const socket = new SockJS('http://localhost:8080/ws');
+    const socket = new SockJS('http://localhost:8080/api/public/core/v2.1/channels/open');
     const stompClient = Stomp.over(socket);
 
     stompClient.connect({}, function(frame) {
