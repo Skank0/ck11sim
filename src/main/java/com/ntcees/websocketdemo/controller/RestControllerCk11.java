@@ -3,12 +3,17 @@ package com.ntcees.websocketdemo.controller;
 
 import com.ntcees.websocketdemo.model.SignalData;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.Resource;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -47,7 +52,9 @@ public class RestControllerCk11 {
 
     @GetMapping("/api/public/core/v2.1/addresses")
     public ResponseEntity<String> getAddresses() {
-        return sendJsonAnswer("../../13 linux/00_helps/server_answers/addresses.json");
+        return sendJsonAnswer("../../13 linux/00_helps/server_answers/addresses.json",
+                "https://app-p-srv-balt.oducz.so:9443",
+                "http://10.31.224.135:8080");
     }
 
     @GetMapping("/auth/app/token")
@@ -90,15 +97,22 @@ public class RestControllerCk11 {
 
 
     //отправка ответом json-файла
-    static ResponseEntity<String> sendJsonAnswer(String pathname) {
+    static ResponseEntity<String> sendJsonAnswer(String pathname, String whatReplace, String newValue) {
         try {
             File file = new File(pathname);
             String jsonContent = Files.readString(Path.of(file.getAbsolutePath()));
+            if (!whatReplace.isEmpty()) {
+                jsonContent = jsonContent.replace(whatReplace, newValue);
+            }
             return ResponseEntity.ok()
                     .header("Content-Type", "application/json; charset=utf-8")
                     .body(jsonContent);
         } catch (IOException e) {
             return ResponseEntity.notFound().build();
         }
+    }
+
+    static ResponseEntity<String> sendJsonAnswer(String pathname) {
+        return sendJsonAnswer(pathname, "", "");
     }
 }
