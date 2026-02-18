@@ -51,7 +51,7 @@ public class WebSocketController implements ApplicationListener<org.springframew
         clientStates.keySet().forEach(id -> {
             if (Objects.equals(clientStates.get(id), "justConnected")) {
                 ResponseEntity<String> firstMessage = sendJsonAnswer("../../13 linux/00_helps/server_answers/first_message_result.json");
-                messagingTemplate.convertAndSend("/topic/signals/", firstMessage);
+                messagingTemplate.convertAndSend("/topic/signals", firstMessage);
                 clientStates.put(id, "Connected");
                 log.debug("session {} -> Connected", id);
             }
@@ -62,7 +62,7 @@ public class WebSocketController implements ApplicationListener<org.springframew
             double newValue = Math.sin(currentTimeMillis() / 1000.0 + counter.getAndIncrement()) * 100;
             activeSignals.put(id, newValue);
             SignalData data = new SignalData(id, newValue);
-            messagingTemplate.convertAndSend("/topic/signals/", data);
+            messagingTemplate.convertAndSend("/topic/signals", data);
         });
 
         //todo:

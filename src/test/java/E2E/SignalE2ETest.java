@@ -74,7 +74,7 @@ public class SignalE2ETest {
         // 1. Отправляем POST-запрос для регистрации сигнала
         String signalId = "sensor1";
         String jsonBody = objectMapper.writeValueAsString(Map.of("id", signalId));
-        String topic = "/topic/signals/";
+        String topic = "/topic/signals";
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
