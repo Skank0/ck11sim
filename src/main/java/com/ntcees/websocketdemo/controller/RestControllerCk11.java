@@ -27,7 +27,7 @@ public class RestControllerCk11 {
             return ResponseEntity.badRequest().body("ID не может быть пустым");
         }
         wsController.addSignal(request.getId());
-        return ResponseEntity.ok("Сигнал '" + request.getId() + "' создан. Подключайтесь к /topic/signals");
+        return ResponseEntity.ok("Сигнал '" + request.getId() + "' создан. Подключайтесь к " + WebSocketController.TOPIC);
     }
 
     // Удаление сигнала

@@ -25,7 +25,7 @@
         console.log('Подключено: ' + frame);
 
         // Подписываемся на сигналы
-        stompClient.subscribe('/topic/signals', function(message) {
+        stompClient.subscribe('/pubchan-OGjXXUCae-LKlRoL_ib8Vg', function(message) {
             const data = JSON.parse(message.body);
             document.getElementById('output').innerHTML +=
                 `<div>ID: ${data.id}, Value: ${data.value.toFixed(2)}, Time: ${new Date(data.timestamp)}</div>`;

@@ -74,7 +74,7 @@ public class SignalE2ETest {
         // 1. Отправляем POST-запрос для регистрации сигнала
         String signalId = "sensor1";
         String jsonBody = objectMapper.writeValueAsString(Map.of("id", signalId));
-        String topic = "/topic/signals";
+        String topic = WebSocketController.TOPIC;
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
@@ -108,7 +108,6 @@ public class SignalE2ETest {
 
         //первое сообщение нужно пропустить
         SignalData message = (SignalData)receivedMessages.poll(10, TimeUnit.SECONDS);
-
 
         message = (SignalData)receivedMessages.poll(10, TimeUnit.SECONDS);
         assertThat(message).withFailMessage("Не получено ни одного сообщения SignalData за 10 секунд").isNotNull();
