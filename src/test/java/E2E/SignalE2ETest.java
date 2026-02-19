@@ -99,12 +99,22 @@ public class SignalE2ETest {
         stompSession.subscribe(topic, new StompFrameHandler() {
             @Override
             public Type getPayloadType(StompHeaders headers) {
-                return SignalData.class;
+                return byte[].class; // ← принимаем "сырые" байты
             }
 
             @Override
             public void handleFrame(StompHeaders headers, Object payload) {
-                receivedMessagesGuided.offer(payload);
+                if (payload instanceof byte[] bytes) {
+                    String rawJson = new String(bytes, StandardCharsets.UTF_8);
+                    log.info("Сырое сообщение от сервера: {}", rawJson);
+                    // Попробуем вручную десериализовать
+                    try {
+                        SignalData data = objectMapper.readValue(rawJson, SignalData.class);
+                        receivedMessagesGuided.offer(data);
+                    } catch (Exception e) {
+                        log.error("Ошибка десериализации: {}", e.getMessage());
+                    }
+                }
             }
         });
 
