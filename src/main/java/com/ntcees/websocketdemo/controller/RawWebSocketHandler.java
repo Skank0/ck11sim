@@ -121,7 +121,7 @@ public class RawWebSocketHandler extends TextWebSocketHandler {
     }
 
     private void generateAndBroadcastSignals() {
-        generateAndBroadcastSignals(false);
+        generateAndBroadcastSignals(true);
     }
 
     // Рассылка по каналу
