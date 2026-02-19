@@ -71,7 +71,7 @@ public class SignalE2ETest {
     void shouldReceiveSignalAfterSubscription() throws Exception {
         // 1. Отправляем POST-запрос для регистрации сигнала
         String signalId = "sensor1";
-        String jsonBody = objectMapper.writeValueAsString(Map.of("id", signalId));
+        String jsonBody = objectMapper.writeValueAsString(Map.of("uid", signalId));
         String topic = WebSocketController.TOPIC;
 
         HttpHeaders headers = new HttpHeaders();
@@ -109,7 +109,7 @@ public class SignalE2ETest {
 
         message = (SignalData)receivedMessages.poll(10, TimeUnit.SECONDS);
         assertThat(message).withFailMessage("Не получено ни одного сообщения SignalData за 10 секунд").isNotNull();
-        assertThat(message.getId()).isEqualTo(signalId);
+        assertThat(message.getUid()).isEqualTo(signalId);
         assertThat(message.getValue()).isNotNull();
 
         jsonBody = objectMapper.writeValueAsString(Map.of("subscriptionType", "written"));
@@ -138,7 +138,7 @@ public class SignalE2ETest {
         for (int i = 0; i < 10; i++) {
             message = (SignalData)receivedMessagesGuided.poll(10, TimeUnit.SECONDS);
             assertThat(message).withFailMessage("Не получено сообщения SignalData за 10 секунд").isNotNull();
-            assertThat(signalListGuid.contains(message.getId()));
+            assertThat(signalListGuid.contains(message.getUid()));
             assertThat(message.getValue()).isNotNull();
             log.info("message=" + message);
         }

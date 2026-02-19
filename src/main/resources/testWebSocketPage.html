@@ -5,10 +5,10 @@
 </head>
 <body>
 <p>Adding signal: powershell (new)</p>
-<p>curl -X POST http://localhost:8080/api/signal -H "Content-Type: application/json" -d '{"id": "sensor1"}'</p>
+<p>curl -X POST http://localhost:8080/api/signal -H "Content-Type: application/json" -d '{"uid": "sensor1"}'</p>
 
 <p>Adding signal: powershell (old)</p>
-<p>$body = @{ id = "sensor1" } | ConvertTo-Json</p>
+<p>$body = @{ uid = "sensor1" } | ConvertTo-Json</p>
 <p>Invoke-RestMethod -Uri "http://localhost:8080/api/signal" -Method Post -Body $body -ContentType "application/json"</p>
 
 <div id="output"></div>
@@ -29,7 +29,7 @@
       client.subscribe('/pubchan-OGjXXUCae-LKlRoL_ib8Vg', function(message) {
         const data = JSON.parse(message.body);
         document.getElementById('output').innerHTML +=
-          `<div>ID: ${data.id}, Value: ${data.value.toFixed(2)}</div>`;
+          `<div>ID: ${data.id}, Value: ${data.value.toFixed(2)} qCode: ${data.qCode} timestamp: ${data.timestamp}  timestamp2: ${data.timestamp2}</div>`;
       });
     };
 
