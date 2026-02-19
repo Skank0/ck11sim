@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -60,14 +61,14 @@ public class RestControllerCk11 {
 
 
     //TrymakeRequestToUpdateValues_TEK
-    @GetMapping("/api/public/measurement-values/v2.1/numeric/data/get-snapshot")
+    @PostMapping("/api/public/measurement-values/v2.1/numeric/data/get-snapshot")
     //todo: сделать генерацию измерений
     public ResponseEntity<String> getSnapshot() {
         return sendJsonAnswer("../../13 linux/00_helps/server_answers/multi_meters_now_request.json");
     }
 
     //TrymakeRequestToUpdateValues_TAB
-    @GetMapping("/api/public/measurement-values/v2.1/numeric/data/get-table")
+    @PostMapping("/api/public/measurement-values/v2.1/numeric/data/get-table")
     //todo: сделать генерацию измерений
     public ResponseEntity<String> getTable() {
         return sendJsonAnswer("../../13 linux/00_helps/server_answers/multi_meter_interval_request.json");
@@ -76,10 +77,8 @@ public class RestControllerCk11 {
     @PostMapping("/api/public/measurement-values/v2.1/data/subscriptions/channels/pubchan-OGjXXUCae-LKlRoL_ib8Vg/subscriptions/mv-34")
     //todo: сделать генерацию измерений
     //todo: сделать добавление uid в список для рассылки
-    public ResponseEntity<String> createSubscription(@RequestBody Map<String, Object> payload) {
-        if (payload.containsKey("subscriptionType")) {
-            return sendJsonAnswer("../../13 linux/00_helps/server_answers/create_subscription_result.json");
-        } else if (payload.containsKey("measurementValueToAddUids")) {
+    public ResponseEntity<String> addToSubscription(@RequestBody Map<String, Object> payload) {
+        if (payload.containsKey("measurementValueToAddUids")) {
             List<String> list = (List<String>)payload.get("measurementValueToAddUids");
             for (String element : list) {
                 rawWebSocketHandler.addSignal(element);
@@ -90,6 +89,17 @@ public class RestControllerCk11 {
         }
     }
 
+    @PostMapping("/api/public/measurement-values/v2.1/data/subscriptions/channels/pubchan-OGjXXUCae-LKlRoL_ib8Vg/subscriptions")
+    public ResponseEntity<String> createSubscription(@RequestBody Map<String, Object> payload) {
+        if (payload.containsKey("subscriptionType")) {
+            ResponseEntity<String> answer = sendJsonAnswer("../../13 linux/00_helps/server_answers/create_subscription_result.json");
+            return ResponseEntity.created(URI.create("/api/public/measurement-values/v2.1/data/subscriptions/channels/pubchan-OGjXXUCae-LKlRoL_ib8Vg/subscriptions/mv-34"))
+                    .header("Content-Type", "application/json; charset=utf-8")
+                    .body(answer.getBody());
+        } else {
+            return ResponseEntity.badRequest().body("Неизвестный формат запроса");
+        }
+    }
 
 
     //отправка ответом json-файла
