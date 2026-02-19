@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ntcees.ApplicationCK11sim;
 import com.ntcees.websocketdemo.controller.WebSocketController;
 import com.ntcees.websocketdemo.model.SignalData;
+import com.ntcees.websocketdemo.model.SignalDataList;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -75,7 +76,7 @@ public class SignalE2ETest {
         String jsonBody;
         String topic = WebSocketController.TOPIC;
         HttpEntity<String> request;
-        SignalData message;
+        SignalDataList message;
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
@@ -109,7 +110,7 @@ public class SignalE2ETest {
                     log.info("Сырое сообщение от сервера: {}", rawJson);
                     // Попробуем вручную десериализовать
                     try {
-                        SignalData data = objectMapper.readValue(rawJson, SignalData.class);
+                        SignalDataList data = objectMapper.readValue(rawJson, SignalDataList.class);
                         receivedMessagesGuided.offer(data);
                     } catch (Exception e) {
                         log.error("Ошибка десериализации: {}", e.getMessage());
@@ -119,9 +120,9 @@ public class SignalE2ETest {
         });
 
         for (int i = 0; i < 10; i++) {
-            message = (SignalData)receivedMessagesGuided.poll(10, TimeUnit.SECONDS);
+            message = (SignalDataList)receivedMessagesGuided.poll(10, TimeUnit.SECONDS);
             assertThat(message).withFailMessage("Не получено сообщения SignalData за 10 секунд").isNotNull();
-            assertThat(signalListGuid.contains(message.getUid()));
+            assertThat(signalListGuid.contains(message.getValue().get(0).getUid()));
             assertThat(message.getValue()).isNotNull();
             log.info("message=" + message);
         }

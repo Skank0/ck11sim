@@ -2,6 +2,8 @@
 <html>
 <head>
     <title>WebSocket Client</title>
+    <meta content="text/html;charset=utf-8" http-equiv="Content-Type">
+    <meta content="utf-8" http-equiv="encoding">
 </head>
 <body>
 <p>Adding signal: powershell (new)</p>
@@ -23,15 +25,23 @@
       brokerURL: 'ws://localhost:8080/api/public/core/v2.1/channels/open'
     });
 
-    client.onConnect = function(frame) {
-      console.log('Подключено:', frame);
+client.onConnect = function(frame) {
+    console.log('Подключено:', frame);
 
-      client.subscribe('/pubchan-OGjXXUCae-LKlRoL_ib8Vg', function(message) {
-        const data = JSON.parse(message.body);
-        document.getElementById('output').innerHTML +=
-          `<div>ID: ${data.id}, Value: ${data.value.toFixed(2)} qCode: ${data.qCode} timestamp: ${data.timestamp}  timestamp2: ${data.timestamp2}</div>`;
-      });
-    };
+    client.subscribe('/pubchan-OGjXXUCae-LKlRoL_ib8Vg', function(message) {
+        const data = JSON.parse(message.body); // { "value": [ {...}, {...} ] }
+
+        // Проверяем, что data.value — массив
+        if (Array.isArray(data.value)) {
+            data.value.forEach(item => {
+                document.getElementById('output').innerHTML +=
+                    `<div>ID: ${item.uid}, Value: ${item.value.toFixed(2)}, qCode: ${item.qCode}, timestamp: ${item.timestamp}, timestamp2: ${item.timestamp2}</div>`;
+            });
+        } else {
+            console.error("Ожидался массив в поле 'value'", data);
+        }
+    });
+};
 
     client.activate();
 </script>

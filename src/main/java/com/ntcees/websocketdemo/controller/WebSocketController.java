@@ -1,6 +1,7 @@
 package com.ntcees.websocketdemo.controller;
 
 import com.ntcees.websocketdemo.model.SignalData;
+import com.ntcees.websocketdemo.model.SignalDataList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -65,7 +66,9 @@ public class WebSocketController implements ApplicationListener<org.springframew
             double newValue = Math.sin(currentTimeMillis() / 1000.0 + counter.getAndIncrement()) * 100;
             activeSignals.put(id, newValue);
             SignalData data = new SignalData(id, newValue);
-            messagingTemplate.convertAndSend(WebSocketController.TOPIC, data);
+            SignalDataList list = new SignalDataList();
+            list.getValue().add(data);
+            messagingTemplate.convertAndSend(WebSocketController.TOPIC, list);
         });
 
         //todo:
