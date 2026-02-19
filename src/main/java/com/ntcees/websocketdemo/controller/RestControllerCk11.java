@@ -2,9 +2,8 @@ package com.ntcees.websocketdemo.controller;
 
 
 import com.ntcees.websocketdemo.model.SignalData;
-import com.ntcees.websocketdemo.model.SignalDataList;
+import com.ntcees.websocketdemo.model.SignalValueList;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.bind.annotation.RestController;
@@ -67,7 +66,7 @@ public class RestControllerCk11 {
     //todo: сделать генерацию измерений
     public ResponseEntity<String> getSnapshot() {
         //return sendJsonAnswer("../../13 linux/00_helps/server_answers/multi_meters_now_request.json");
-        SignalDataList signalDataList = rawWebSocketHandler.generateAndBroadcastSignals(false);
+        SignalValueList signalDataList = rawWebSocketHandler.generateAndBroadcastSignals(false);
         if (signalDataList != null) {
             String json = rawWebSocketHandler.toJson(signalDataList);
             return ResponseEntity.ok()
@@ -98,6 +97,12 @@ public class RestControllerCk11 {
         } else {
             return ResponseEntity.badRequest().body("Неизвестный формат запроса");
         }
+    }
+
+    //для тестов
+    @PostMapping("/api/public/measurement-values/v2.1/data/subscriptions/channels/pubchan-OGjXXUCae-LKlRoL_ib8Vg/subscriptions/mv-34/post")
+    public ResponseEntity<String> addToSubscriptionPOST(@RequestBody Map<String, Object> payload) {
+        return addToSubscription(payload);
     }
 
     @PostMapping("/api/public/measurement-values/v2.1/data/subscriptions/channels/pubchan-OGjXXUCae-LKlRoL_ib8Vg/subscriptions")

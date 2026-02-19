@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.ntcees.websocketdemo.model.SignalData;
 import com.ntcees.websocketdemo.model.SignalDataList;
+import com.ntcees.websocketdemo.model.SignalValueList;
 import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -97,10 +98,10 @@ public class RawWebSocketHandler extends TextWebSocketHandler {
     }
 
     // Генерация и рассылка данных
-    public SignalDataList generateAndBroadcastSignals(boolean sendToWebSocket) {
+    public SignalValueList generateAndBroadcastSignals(boolean sendToWebSocket) {
         if (activeSignals.isEmpty()) return null;
 
-        SignalDataList all = new SignalDataList();
+        SignalValueList all = new SignalValueList();
         activeSignals.keySet().forEach(channel -> {
             double newValue = Math.sin(System.currentTimeMillis() / 1000.0 + counter.getAndIncrement()) * 100;
             activeSignals.put(channel, newValue);
@@ -111,7 +112,7 @@ public class RawWebSocketHandler extends TextWebSocketHandler {
             if (sendToWebSocket) {
                 // Формируем SignalDataList
                 SignalDataList list = new SignalDataList();
-                list.getValue().add(data);
+                list.getData().getData().add(data);
                 broadcast(list);
             } else {
                 all.getValue().add(data);

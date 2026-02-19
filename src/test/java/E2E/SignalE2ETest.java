@@ -2,10 +2,14 @@ package E2E;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ntcees.ApplicationCK11sim;
+import com.ntcees.websocketdemo.controller.RawWebSocketHandler;
 import com.ntcees.websocketdemo.model.SignalDataList;
+import com.ntcees.websocketdemo.model.SignalValueList;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
@@ -30,6 +34,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, classes = ApplicationCK11sim.class)
 class SignalE2ETest {
+
+    private static final Logger log = LoggerFactory.getLogger(RawWebSocketHandler.class);
 
     @LocalServerPort
     private int port;
@@ -100,7 +106,7 @@ class SignalE2ETest {
         String jsonBody1 = objectMapper.writeValueAsString(Map.of("subscriptionType", "written"));
         HttpEntity<String> request1 = new HttpEntity<>(jsonBody1, httpHeaders);
         restTemplate.postForEntity(
-                "http://localhost:" + port + "/api/public/measurement-values/v2.1/data/subscriptions/channels/pubchan-OGjXXUCae-LKlRoL_ib8Vg/subscriptions/mv-34",
+                "http://localhost:" + port + "/api/public/measurement-values/v2.1/data/subscriptions/channels/pubchan-OGjXXUCae-LKlRoL_ib8Vg/subscriptions",
                 request1, Void.class
         );
 
@@ -111,7 +117,7 @@ class SignalE2ETest {
         String jsonBody2 = objectMapper.writeValueAsString(Map.of("measurementValueToAddUids", signalListGuid));
         HttpEntity<String> request2 = new HttpEntity<>(jsonBody2, httpHeaders);
         restTemplate.postForEntity(
-                "http://localhost:" + port + "/api/public/measurement-values/v2.1/data/subscriptions/channels/pubchan-OGjXXUCae-LKlRoL_ib8Vg/subscriptions/mv-34",
+                "http://localhost:" + port + "/api/public/measurement-values/v2.1/data/subscriptions/channels/pubchan-OGjXXUCae-LKlRoL_ib8Vg/subscriptions/mv-34/post",
                 request2, Void.class
         );
 
@@ -125,8 +131,9 @@ class SignalE2ETest {
         assertThat(rawJson).withFailMessage("Не получено сообщение за 10 сек").isNotNull();
 
         // 3. Парсим как SignalDataList
+        log.info("raw: {}",  rawJson);
         SignalDataList list = objectMapper.readValue(rawJson, SignalDataList.class);
-        assertThat(list.getValue()).isNotEmpty();
-        assertThat(list.getValue().get(0).getUid()).isIn(signalListGuid);
+        assertThat(list.getData().getData()).isNotEmpty();
+        assertThat(list.getData().getData().get(0).getUid()).isIn(signalListGuid);
     }
 }
