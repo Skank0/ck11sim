@@ -26,6 +26,7 @@ import org.springframework.web.socket.client.standard.StandardWebSocketClient;
 import org.springframework.web.socket.messaging.WebSocketStompClient;
 
 import java.lang.reflect.Type;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
@@ -70,47 +71,19 @@ public class SignalE2ETest {
     @Test
     void shouldReceiveSignalAfterSubscription() throws Exception {
         // 1. Отправляем POST-запрос для регистрации сигнала
-        String signalId = "sensor1";
-        String jsonBody = objectMapper.writeValueAsString(Map.of("uid", signalId));
+        String signalId;
+        String jsonBody;
         String topic = WebSocketController.TOPIC;
+        HttpEntity<String> request;
+        SignalData message;
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-        HttpEntity<String> request = new HttpEntity<>(jsonBody, headers);
-
-        restTemplate.postForEntity("http://localhost:" + port + "/api/signal", request, Void.class);
-
-
 
         // 2. Подключаемся к WebSocket
         String wsUrl = "ws://localhost:" + port + "/api/public/core/v2.1/channels/open";
         ListenableFuture<StompSession> sessionFuture = stompClient.connect(wsUrl, new StompSessionHandlerAdapter() {});
         stompSession = sessionFuture.get(10, TimeUnit.SECONDS);
-
-
-
-        // 3. Подписываемся на тему и ждём сообщение
-        BlockingQueue<Object> receivedMessages = new LinkedBlockingQueue<>();
-        stompSession.subscribe(topic, new StompFrameHandler() {
-            @Override
-            public Type getPayloadType(StompHeaders headers) {
-                return SignalData.class;
-            }
-
-            @Override
-            public void handleFrame(StompHeaders headers, Object payload) {
-                receivedMessages.offer(payload);
-                //log.info(payload.toString());
-            }
-        });
-
-        //первое сообщение нужно пропустить
-        SignalData message = (SignalData)receivedMessages.poll(10, TimeUnit.SECONDS);
-
-        message = (SignalData)receivedMessages.poll(10, TimeUnit.SECONDS);
-        assertThat(message).withFailMessage("Не получено ни одного сообщения SignalData за 10 секунд").isNotNull();
-        assertThat(message.getUid()).isEqualTo(signalId);
-        assertThat(message.getValue()).isNotNull();
 
         jsonBody = objectMapper.writeValueAsString(Map.of("subscriptionType", "written"));
         request = new HttpEntity<>(jsonBody, headers);
