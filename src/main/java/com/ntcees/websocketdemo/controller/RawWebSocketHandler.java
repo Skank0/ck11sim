@@ -22,10 +22,7 @@ import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -100,19 +97,31 @@ public class RawWebSocketHandler extends TextWebSocketHandler {
     }
 
     // Генерация и рассылка данных
-    private void generateAndBroadcastSignals() {
+    public SignalDataList generateAndBroadcastSignals(boolean sendToWebSocket) {
+        if (activeSignals.isEmpty()) return null;
+
+        SignalDataList all = new SignalDataList();
         activeSignals.keySet().forEach(channel -> {
             double newValue = Math.sin(System.currentTimeMillis() / 1000.0 + counter.getAndIncrement()) * 100;
             activeSignals.put(channel, newValue);
 
-            // Формируем SignalDataList
-            SignalData data = new SignalData(channel, newValue);
-            SignalDataList list = new SignalDataList();
-            list.getValue().add(data);
 
+            SignalData data = new SignalData(channel, newValue);
             // Рассылаем всем подписанным клиентам
-            broadcast(list);
+            if (sendToWebSocket) {
+                // Формируем SignalDataList
+                SignalDataList list = new SignalDataList();
+                list.getValue().add(data);
+                broadcast(list);
+            } else {
+                all.getValue().add(data);
+            }
         });
+        return all;
+    }
+
+    private void generateAndBroadcastSignals() {
+        generateAndBroadcastSignals(false);
     }
 
     // Рассылка по каналу
@@ -144,7 +153,7 @@ public class RawWebSocketHandler extends TextWebSocketHandler {
     }
 
     // Вспомогательные методы
-    private String toJson(Object obj) {
+    public String toJson(Object obj) {
         try {
             ObjectMapper mapper = new ObjectMapper();
             mapper.registerModule(new JavaTimeModule());
