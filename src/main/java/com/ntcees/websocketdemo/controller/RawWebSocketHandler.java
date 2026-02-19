@@ -9,8 +9,6 @@ import com.ntcees.websocketdemo.model.SignalDataList;
 import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.core.io.ClassPathResource;
-import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
@@ -19,7 +17,6 @@ import org.springframework.web.socket.WebSocketSession;
 import jakarta.annotation.PostConstruct;
 
 import java.io.File;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
@@ -94,6 +91,9 @@ public class RawWebSocketHandler extends TextWebSocketHandler {
         String sessionId = session.getId();
         log.info("Клиент отключился: {} (статус: {})", sessionId, status);
         clientSubscriptions.remove(sessionId);
+        if (clientSubscriptions.isEmpty()) {
+            activeSignals.clear();
+        }
     }
 
     // Генерация и рассылка данных
