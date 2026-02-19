@@ -16,34 +16,50 @@
 <div id="output"></div>
 
 
-<!-- Подключите STOMP.js -->
-<script src="https://cdn.jsdelivr.net/npm/@stomp/stompjs@7.0.0/bundles/stomp.umd.min.js"></script>
 
 <script>
-    // Создаём клиент
-    const client = new StompJs.Client({
-      brokerURL: 'ws://localhost:8080/api/public/core/v2.1/channels/open'
-    });
+    // Создаём нативный WebSocket-клиент
+    const socket = new WebSocket('ws://localhost:8080/api/public/core/v2.1/channels/open');
 
-client.onConnect = function(frame) {
-    console.log('Подключено:', frame);
+    // Обработчик подключения
+    socket.onopen = function(event) {
+        console.log('Подключено к WebSocket:', event);
 
-    client.subscribe('/pubchan-OGjXXUCae-LKlRoL_ib8Vg', function(message) {
-        const data = JSON.parse(message.body); // { "value": [ {...}, {...} ] }
+        // Отправляем команду подписки (ваш протокол)
+        const subscribeMessage = {
+            type: "subscribe",
+            channel: "pubchan-OGjXXUCae-LKlRoL_ib8Vg"
+        };
+        socket.send(JSON.stringify(subscribeMessage));
+    };
 
-        // Проверяем, что data.value — массив
-        if (Array.isArray(data.value)) {
-            data.value.forEach(item => {
-                document.getElementById('output').innerHTML +=
-                    `<div>ID: ${item.uid}, Value: ${item.value.toFixed(2)}, qCode: ${item.qCode}, timestamp: ${item.timestamp}, timestamp2: ${item.timestamp2}</div>`;
-            });
-        } else {
-            console.error("Ожидался массив в поле 'value'", data);
+    // Обработчик входящих сообщений
+    socket.onmessage = function(event) {
+        try {
+            const data = JSON.parse(event.data); // Ожидаем SignalDataList: { "value": [...] }
+
+            if (Array.isArray(data.value)) {
+                data.value.forEach(item => {
+                    document.getElementById('output').innerHTML +=
+                        `<div>ID: ${item.uid}, Value: ${item.value.toFixed(2)}, qCode: ${item.qCode}, timestamp: ${item.timestamp}, timestamp2: ${item.timestamp2}</div>`;
+                });
+            } else {
+                console.error("Ожидался массив в поле 'value'", data);
+            }
+        } catch (e) {
+            console.error("Ошибка обработки сообщения:", e, event.data);
         }
-    });
-};
+    };
 
-    client.activate();
+    // Обработчик ошибок
+    socket.onerror = function(error) {
+        console.error('Ошибка WebSocket:', error);
+    };
+
+    // Обработчик закрытия соединения
+    socket.onclose = function(event) {
+        console.log('Соединение закрыто:', event);
+    };
 </script>
 </body>
 </html>

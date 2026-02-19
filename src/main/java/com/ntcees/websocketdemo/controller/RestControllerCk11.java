@@ -18,7 +18,7 @@ import java.util.Map;
 public class RestControllerCk11 {
 
     @Autowired
-    private WebSocketController wsController;
+    private RawWebSocketHandler  rawWebSocketHandler;
 
     // Создание нового сигнала
     @PostMapping("/api/signal")
@@ -26,14 +26,14 @@ public class RestControllerCk11 {
         if (request.getUid() == null || request.getUid().isBlank()) {
             return ResponseEntity.badRequest().body("ID не может быть пустым");
         }
-        wsController.addSignal(request.getUid());
-        return ResponseEntity.ok("Сигнал '" + request.getUid() + "' создан. Подключайтесь к " + WebSocketController.TOPIC);
+        rawWebSocketHandler.addSignal(request.getUid());
+        return ResponseEntity.ok("Сигнал '" + request.getUid() + "' создан. Подключайтесь к " + RawWebSocketHandler.TOPIC);
     }
 
     // Удаление сигнала
     @DeleteMapping("/api/signal/{id}")
     public ResponseEntity<String> deleteSignal(@PathVariable String id) {
-        wsController.removeSignal(id);
+        rawWebSocketHandler.removeSignal(id);
         return ResponseEntity.ok("Сигнал '" + id + "' удалён");
     }
 
@@ -82,7 +82,7 @@ public class RestControllerCk11 {
         } else if (payload.containsKey("measurementValueToAddUids")) {
             List<String> list = (List<String>)payload.get("measurementValueToAddUids");
             for (String element : list) {
-                wsController.addSignal(element);
+                rawWebSocketHandler.addSignal(element);
             }
             return sendJsonAnswer("../../13 linux/00_helps/server_answers/meter_result.json");
         } else {

@@ -2,14 +2,10 @@ package E2E;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ntcees.ApplicationCK11sim;
-import com.ntcees.websocketdemo.controller.WebSocketController;
-import com.ntcees.websocketdemo.model.SignalData;
 import com.ntcees.websocketdemo.model.SignalDataList;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
@@ -17,29 +13,23 @@ import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
-import org.springframework.messaging.converter.MappingJackson2MessageConverter;
-import org.springframework.messaging.simp.stomp.StompFrameHandler;
-import org.springframework.messaging.simp.stomp.StompHeaders;
-import org.springframework.messaging.simp.stomp.StompSession;
-import org.springframework.messaging.simp.stomp.StompSessionHandlerAdapter;
-import org.springframework.util.concurrent.ListenableFuture;
+import org.springframework.web.socket.TextMessage;
+import org.springframework.web.socket.WebSocketHttpHeaders;
+import org.springframework.web.socket.WebSocketSession;
+import org.springframework.web.socket.client.WebSocketConnectionManager;
 import org.springframework.web.socket.client.standard.StandardWebSocketClient;
-import org.springframework.web.socket.messaging.WebSocketStompClient;
+import org.springframework.web.socket.handler.TextWebSocketHandler;
 
-import java.lang.reflect.Type;
-import java.nio.charset.StandardCharsets;
+import java.net.URI;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, classes = ApplicationCK11sim.class)
-public class SignalE2ETest {
-
-    private static final Logger log = LoggerFactory.getLogger(WebSocketController.class);
+class SignalE2ETest {
 
     @LocalServerPort
     private int port;
@@ -50,81 +40,93 @@ public class SignalE2ETest {
     @Autowired
     private ObjectMapper objectMapper;
 
-    private WebSocketStompClient stompClient;
-    private StompSession stompSession;
+    private WebSocketHttpHeaders headers;
+    private StandardWebSocketClient client;
+    private WebSocketConnectionManager connectionManager;
+    private LinkedBlockingQueue<String> receivedMessages = new LinkedBlockingQueue<>();
 
     @BeforeEach
     void setup() {
-        stompClient = new WebSocketStompClient(new StandardWebSocketClient());
-        stompClient.setMessageConverter(new MappingJackson2MessageConverter());
+        headers = new WebSocketHttpHeaders();
+        client = new StandardWebSocketClient();
+        // Подключаемся к эндпоинту
+        URI uri = URI.create("ws://localhost:" + port + "/api/public/core/v2.1/channels/open");
+        connectionManager = new WebSocketConnectionManager(client, new TextWebSocketHandler() {
+            @Override
+            public void afterConnectionEstablished(WebSocketSession session) throws Exception {
+
+                Map<String, Object> subscribeMsg = Map.of(
+                        "type", "subscribe",
+                        "channel", "pubchan-OGjXXUCae-LKlRoL_ib8Vg"
+                );
+                session.sendMessage(new TextMessage(objectMapper.writeValueAsString(subscribeMsg)));
+
+                String signalId;
+                String jsonBody;
+                HttpEntity<String> request;
+
+                jsonBody = objectMapper.writeValueAsString(Map.of("subscriptionType", "written"));
+                request = new HttpEntity<>(jsonBody, headers);
+                restTemplate.postForEntity("http://localhost:" + port + "/api/public/measurement-values/v2.1/data/subscriptions/channels/pubchan-OGjXXUCae-LKlRoL_ib8Vg/subscriptions/mv-34", request, Void.class);
+
+                List<String> signalListGuid = List.of("38ca00a5-fbdb-44a1-9f32-10d065804165", "610577b7-c37e-42e0-a753-b4e5a87afbb9");
+                jsonBody = objectMapper.writeValueAsString(Map.of("measurementValueToAddUids", signalListGuid));
+                request = new HttpEntity<>(jsonBody, headers);
+                restTemplate.postForEntity("http://localhost:" + port + "/api/public/measurement-values/v2.1/data/subscriptions/channels/pubchan-OGjXXUCae-LKlRoL_ib8Vg/subscriptions/mv-34", request, Void.class);
+
+            }
+
+            @Override
+            protected void handleTextMessage(WebSocketSession session, TextMessage message) throws Exception {
+                receivedMessages.offer(message.getPayload());
+            }
+        }, String.valueOf(uri), headers);
+        connectionManager.start();
     }
 
     @AfterEach
     void tearDown() throws Exception {
-        if (stompSession != null && stompSession.isConnected()) {
-            stompSession.disconnect();
-        }
-        if (stompClient != null) {
-            stompClient.stop();
+        if (connectionManager != null) {
+            connectionManager.stop();
         }
     }
 
     @Test
-    void shouldReceiveSignalAfterSubscription() throws Exception {
-        // 1. Отправляем POST-запрос для регистрации сигнала
-        String signalId;
-        String jsonBody;
-        String topic = WebSocketController.TOPIC;
-        HttpEntity<String> request;
-        SignalDataList message;
+    void shouldReceiveSignalData() throws Exception {
+        // 1. Отправляем REST-запросы для регистрации
+        HttpHeaders httpHeaders = new HttpHeaders();
+        httpHeaders.setContentType(MediaType.APPLICATION_JSON);
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
+        String jsonBody1 = objectMapper.writeValueAsString(Map.of("subscriptionType", "written"));
+        HttpEntity<String> request1 = new HttpEntity<>(jsonBody1, httpHeaders);
+        restTemplate.postForEntity(
+                "http://localhost:" + port + "/api/public/measurement-values/v2.1/data/subscriptions/channels/pubchan-OGjXXUCae-LKlRoL_ib8Vg/subscriptions/mv-34",
+                request1, Void.class
+        );
 
-        // 2. Подключаемся к WebSocket
-        String wsUrl = "ws://localhost:" + port + "/api/public/core/v2.1/channels/open";
-        ListenableFuture<StompSession> sessionFuture = stompClient.connect(wsUrl, new StompSessionHandlerAdapter() {});
-        stompSession = sessionFuture.get(10, TimeUnit.SECONDS);
+        List<String> signalListGuid = List.of(
+                "38ca00a5-fbdb-44a1-9f32-10d065804165",
+                "610577b7-c37e-42e0-a753-b4e5a87afbb9"
+        );
+        String jsonBody2 = objectMapper.writeValueAsString(Map.of("measurementValueToAddUids", signalListGuid));
+        HttpEntity<String> request2 = new HttpEntity<>(jsonBody2, httpHeaders);
+        restTemplate.postForEntity(
+                "http://localhost:" + port + "/api/public/measurement-values/v2.1/data/subscriptions/channels/pubchan-OGjXXUCae-LKlRoL_ib8Vg/subscriptions/mv-34",
+                request2, Void.class
+        );
 
-        jsonBody = objectMapper.writeValueAsString(Map.of("subscriptionType", "written"));
-        request = new HttpEntity<>(jsonBody, headers);
-        restTemplate.postForEntity("http://localhost:" + port + "/api/public/measurement-values/v2.1/data/subscriptions/channels/pubchan-OGjXXUCae-LKlRoL_ib8Vg/subscriptions/mv-34", request, Void.class);
+        // 2. Ждём сообщения
+        // первое сообщение - не SignalDataList
+        String rawJson = receivedMessages.poll(10, TimeUnit.SECONDS);
+        assertThat(rawJson).withFailMessage("Не получено сообщение за 10 сек").isNotNull();
 
+        // второе сообщение - SignalDataList
+        rawJson = receivedMessages.poll(10, TimeUnit.SECONDS);
+        assertThat(rawJson).withFailMessage("Не получено сообщение за 10 сек").isNotNull();
 
-        List<String> signalListGuid = List.of("38ca00a5-fbdb-44a1-9f32-10d065804165", "610577b7-c37e-42e0-a753-b4e5a87afbb9");
-        jsonBody = objectMapper.writeValueAsString(Map.of("measurementValueToAddUids", signalListGuid));
-        request = new HttpEntity<>(jsonBody, headers);
-        restTemplate.postForEntity("http://localhost:" + port + "/api/public/measurement-values/v2.1/data/subscriptions/channels/pubchan-OGjXXUCae-LKlRoL_ib8Vg/subscriptions/mv-34", request, Void.class);
-
-        BlockingQueue<Object> receivedMessagesGuided = new LinkedBlockingQueue<>();
-        stompSession.subscribe(topic, new StompFrameHandler() {
-            @Override
-            public Type getPayloadType(StompHeaders headers) {
-                return byte[].class; // ← принимаем "сырые" байты
-            }
-
-            @Override
-            public void handleFrame(StompHeaders headers, Object payload) {
-                if (payload instanceof byte[] bytes) {
-                    String rawJson = new String(bytes, StandardCharsets.UTF_8);
-                    log.info("Сырое сообщение от сервера: {}", rawJson);
-                    // Попробуем вручную десериализовать
-                    try {
-                        SignalDataList data = objectMapper.readValue(rawJson, SignalDataList.class);
-                        receivedMessagesGuided.offer(data);
-                    } catch (Exception e) {
-                        log.error("Ошибка десериализации: {}", e.getMessage());
-                    }
-                }
-            }
-        });
-
-        for (int i = 0; i < 10; i++) {
-            message = (SignalDataList)receivedMessagesGuided.poll(10, TimeUnit.SECONDS);
-            assertThat(message).withFailMessage("Не получено сообщения SignalData за 10 секунд").isNotNull();
-            assertThat(signalListGuid.contains(message.getValue().get(0).getUid()));
-            assertThat(message.getValue()).isNotNull();
-            log.info("message=" + message);
-        }
+        // 3. Парсим как SignalDataList
+        SignalDataList list = objectMapper.readValue(rawJson, SignalDataList.class);
+        assertThat(list.getValue()).isNotEmpty();
+        assertThat(list.getValue().get(0).getUid()).isIn(signalListGuid);
     }
 }
