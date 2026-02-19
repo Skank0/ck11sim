@@ -3,6 +3,8 @@ package com.ntcees.websocketdemo.controller;
 
 import com.ntcees.websocketdemo.model.SignalData;
 import com.ntcees.websocketdemo.model.SignalValueList;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -18,6 +20,8 @@ import java.util.Map;
 
 @RestController
 public class RestControllerCk11 {
+
+    private static final Logger log = LoggerFactory.getLogger(RawWebSocketHandler.class);
 
     @Autowired
     private RawWebSocketHandler  rawWebSocketHandler;
@@ -117,6 +121,12 @@ public class RestControllerCk11 {
         }
     }
 
+
+    @PostMapping("/api/public/measurement-values/v2.1/numeric/data/write")
+    public ResponseEntity<String> wrtieToSK11(@RequestBody Map<String, Object> payload) {
+        log.info("send to sk11: {}", payload);
+        return ResponseEntity.ok().body("{\"writed\":\"ok\"}");
+    }
 
     //отправка ответом json-файла
     static ResponseEntity<String> sendJsonAnswer(String pathname, List<String> whatReplace, List<String> newValue) {
