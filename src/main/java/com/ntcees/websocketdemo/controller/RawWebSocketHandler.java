@@ -49,7 +49,8 @@ public class RawWebSocketHandler extends TextWebSocketHandler {
     // Маппинг: sessionId -> каналы, на которые подписан клиент
     private static final Map<String, WebSocketSession> clientSubscriptions = new ConcurrentHashMap<>();
 
-    private final ScheduledExecutorService schedulerCurrentMeters = Executors.newScheduledThreadPool(2);
+    private final ScheduledExecutorService schedulerCurrentMeters1 = Executors.newScheduledThreadPool(2);
+    private final ScheduledExecutorService schedulerCurrentMeters2 = Executors.newScheduledThreadPool(2);
     private final ScheduledExecutorService schedulerAuth = Executors.newScheduledThreadPool(2);
     private final AtomicInteger counter = new AtomicInteger(0);
     private final AtomicBoolean isAuth = new AtomicBoolean(false);
@@ -65,7 +66,8 @@ public class RawWebSocketHandler extends TextWebSocketHandler {
     @PostConstruct
     public void init() {
         // Запускаем генератор данных
-        schedulerCurrentMeters.scheduleAtFixedRate(this::generateAndBroadcastSignals, 0, 1, TimeUnit.SECONDS);
+        schedulerCurrentMeters1.scheduleAtFixedRate(this::generateAndBroadcastSignals, 0, 1, TimeUnit.SECONDS);
+        schedulerCurrentMeters2.scheduleAtFixedRate(this::generateAndBroadcastSignals, 0, 750, TimeUnit.MILLISECONDS);
         schedulerAuth.scheduleAtFixedRate(this::setIsAuthFalse, 0, 120, TimeUnit.SECONDS);
     }
 
@@ -75,7 +77,8 @@ public class RawWebSocketHandler extends TextWebSocketHandler {
 
     @PreDestroy
     public void destroy() {
-        schedulerCurrentMeters.shutdown();
+        schedulerCurrentMeters1.shutdown();
+        schedulerCurrentMeters2.shutdown();
         schedulerAuth.shutdown();
     }
 
@@ -193,18 +196,20 @@ public class RawWebSocketHandler extends TextWebSocketHandler {
     // Рассылка по каналу
     private void broadcast(Object payload) {
         String json = toJson(payload);
-        clientSubscriptions.forEach((sessionId, webSocketSession) -> {
-            {
-                if (webSocketSession != null && webSocketSession.isOpen()) {
-                    try {
-                        webSocketSession.sendMessage(new TextMessage(json));
-                        log.debug("Отправка для сессии {} значение {}", webSocketSession.getId(), json);
-                    } catch (Exception e) {
-                        log.warn("Ошибка отправки в сессию {}: {}", sessionId, e.getMessage());
+        synchronized (clientSubscriptions) {
+            clientSubscriptions.forEach((sessionId, webSocketSession) -> {
+                {
+                    if (webSocketSession != null && webSocketSession.isOpen()) {
+                        try {
+                            webSocketSession.sendMessage(new TextMessage(json));
+                            log.debug("Отправка для сессии {} значение {}", webSocketSession.getId(), json);
+                        } catch (Exception e) {
+                            log.warn("Ошибка отправки в сессию {}: {}", sessionId, e.getMessage());
+                        }
                     }
                 }
-            }
-        });
+            });
+        }
     }
 
 
