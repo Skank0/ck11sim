@@ -3,6 +3,7 @@ package com.ntcees.websocketdemo.controller;
 
 import com.ntcees.websocketdemo.model.SignalData;
 import com.ntcees.websocketdemo.model.SignalValueList;
+import com.ntcees.websocketdemo.model.SignalValueValueList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -88,12 +89,23 @@ public class RestControllerCk11 {
 
     //TrymakeRequestToUpdateValues_TAB
     @PostMapping("/api/public/measurement-values/v2.1/numeric/data/get-table")
-    //todo: сделать генерацию измерений
+    //done: сделать генерацию измерений
     public ResponseEntity<String> getTable() {
         if (!rawWebSocketHandler.getIsAuth()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
-        return sendJsonAnswer("../../13 linux/00_helps/server_answers/multi_meter_interval_request.json");
+        //return sendJsonAnswer("../../13 linux/00_helps/server_answers/multi_meter_interval_request.json");
+        SignalValueList signalDataList = rawWebSocketHandler.generateAndBroadcastSignals(false, true);
+        if (signalDataList != null) {
+            SignalValueValueList signalValueValueList = new SignalValueValueList();
+            signalValueValueList.getValue().add(new SignalValueValueList.DataWrapperValueValue(signalDataList.getValue()));
+            String json = rawWebSocketHandler.toJson(signalValueValueList);
+            return ResponseEntity.ok()
+                    .header("Content-Type", "application/json; charset=utf-8")
+                    .body(json);
+        } else {
+            return ResponseEntity.noContent().build();
+        }
     }
 
     @PatchMapping("/api/public/measurement-values/v2.1/data/subscriptions/channels/pubchan-OGjXXUCae-LKlRoL_ib8Vg/subscriptions/mv-34")

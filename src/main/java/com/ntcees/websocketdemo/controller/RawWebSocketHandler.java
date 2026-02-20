@@ -50,7 +50,6 @@ public class RawWebSocketHandler extends TextWebSocketHandler {
     private static final Map<String, WebSocketSession> clientSubscriptions = new ConcurrentHashMap<>();
 
     private final ScheduledExecutorService schedulerCurrentMeters = Executors.newScheduledThreadPool(2);
-    private final ScheduledExecutorService schedulerPlanMeters = Executors.newScheduledThreadPool(2);
     private final AtomicInteger counter = new AtomicInteger(0);
     private final AtomicBoolean isAuth = new AtomicBoolean(false);
 
@@ -66,13 +65,11 @@ public class RawWebSocketHandler extends TextWebSocketHandler {
     public void init() {
         // Запускаем генератор данных
         schedulerCurrentMeters.scheduleAtFixedRate(this::generateAndBroadcastSignals, 0, 1, TimeUnit.SECONDS);
-        schedulerCurrentMeters.scheduleAtFixedRate(this::generateAndBroadcastSignalsPlans, 0, 10, TimeUnit.SECONDS);
     }
 
     @PreDestroy
     public void destroy() {
         schedulerCurrentMeters.shutdown();
-        schedulerPlanMeters.shutdown();
     }
 
     @Override
@@ -131,7 +128,7 @@ public class RawWebSocketHandler extends TextWebSocketHandler {
         SignalDataList dataList = new SignalDataList();
         activeSignals.keySet().forEach(channel -> {
             int count = 1;
-            if (isPlans) count = 24;
+            if (isPlans) count = 48;
 
             LocalDate date = LocalDate.now(); // Получаем сегодняшнюю дату
             LocalDateTime midnight = date.atStartOfDay();
