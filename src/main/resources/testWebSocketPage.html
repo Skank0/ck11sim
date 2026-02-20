@@ -13,6 +13,8 @@
 <p>$body = @{ uid = "sensor1" } | ConvertTo-Json</p>
 <p>Invoke-RestMethod -Uri "http://localhost:8080/api/signal" -Method Post -Body $body -ContentType "application/json"</p>
 
+<button onclick="fetch('http://localhost:8080/api/reset_token')" type="button" id="button">Сброс токена</button>
+
 <div id="output"></div>
 
 

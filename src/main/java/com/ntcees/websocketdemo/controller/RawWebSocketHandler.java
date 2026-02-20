@@ -18,6 +18,7 @@ import org.springframework.web.socket.WebSocketSession;
 import jakarta.annotation.PostConstruct;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
@@ -25,6 +26,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.springframework.web.socket.handler.TextWebSocketHandler;
@@ -45,6 +47,15 @@ public class RawWebSocketHandler extends TextWebSocketHandler {
 
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(2);
     private final AtomicInteger counter = new AtomicInteger(0);
+    private final AtomicBoolean isAuth = new AtomicBoolean(false);
+
+    public boolean getIsAuth() {
+        return isAuth.get();
+    }
+
+    public void setIsAuth(boolean newValue) {
+        isAuth.set(newValue);
+    }
 
     @PostConstruct
     public void init() {
@@ -101,6 +112,14 @@ public class RawWebSocketHandler extends TextWebSocketHandler {
     public SignalValueList generateAndBroadcastSignals(boolean sendToWebSocket) {
         if (activeSignals.isEmpty()) return null;
 
+        if (!this.getIsAuth()) {
+            SignalDataList list = new SignalDataList();
+            list.setType("ru.monitel.ck11.exclusive-sub.aborted.v2");
+            broadcast(list);
+            closeAllSessions();
+            return null;
+        }
+
         SignalValueList all = new SignalValueList();
         activeSignals.keySet().forEach(channel -> {
             double newValue = Math.sin(System.currentTimeMillis() / 1000.0 + counter.getAndIncrement()) * 100;
@@ -123,6 +142,18 @@ public class RawWebSocketHandler extends TextWebSocketHandler {
 
     private void generateAndBroadcastSignals() {
         generateAndBroadcastSignals(true);
+    }
+
+    private void closeAllSessions() {
+        clientSubscriptions.forEach((sessionId, webSocketSession) -> {
+            try {
+                webSocketSession.close();
+            } catch (IOException e) {
+                log.error("Не получается закрыть сессию");
+            }
+        });
+
+        clientSubscriptions.clear();
     }
 
     // Рассылка по каналу

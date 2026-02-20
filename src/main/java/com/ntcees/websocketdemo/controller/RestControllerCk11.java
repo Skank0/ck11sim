@@ -6,6 +6,7 @@ import com.ntcees.websocketdemo.model.SignalValueList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.bind.annotation.RestController;
@@ -44,7 +45,7 @@ public class RestControllerCk11 {
     }
 
     // Получение текущего значения сигнала
-    @GetMapping("/signal/{id}")
+    @GetMapping("/api/signal/{id}")
     public ResponseEntity<SignalData> getSignal(@PathVariable String id) {
         // В реальном приложении здесь можно было бы хранить последние значения
         return ResponseEntity.ok(new SignalData(id, Math.random() * 100));
@@ -61,15 +62,19 @@ public class RestControllerCk11 {
 
     @PostMapping("/auth/app/token")
     public ResponseEntity<String> getToken(@RequestBody Map<String, Object> payload) {
+        rawWebSocketHandler.setIsAuth(true);
         return sendJsonAnswer("../../13 linux/00_helps/server_answers/token.json");
     }
 
 
     //TrymakeRequestToUpdateValues_TEK
     @PostMapping("/api/public/measurement-values/v2.1/numeric/data/get-snapshot")
-    //todo: сделать генерацию измерений
+    //done: сделать генерацию измерений
     public ResponseEntity<String> getSnapshot() {
         //return sendJsonAnswer("../../13 linux/00_helps/server_answers/multi_meters_now_request.json");
+        if (!rawWebSocketHandler.getIsAuth()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
         SignalValueList signalDataList = rawWebSocketHandler.generateAndBroadcastSignals(false);
         if (signalDataList != null) {
             String json = rawWebSocketHandler.toJson(signalDataList);
@@ -85,6 +90,9 @@ public class RestControllerCk11 {
     @PostMapping("/api/public/measurement-values/v2.1/numeric/data/get-table")
     //todo: сделать генерацию измерений
     public ResponseEntity<String> getTable() {
+        if (!rawWebSocketHandler.getIsAuth()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
         return sendJsonAnswer("../../13 linux/00_helps/server_answers/multi_meter_interval_request.json");
     }
 
@@ -92,6 +100,9 @@ public class RestControllerCk11 {
     //todo: сделать генерацию измерений
     //todo: сделать добавление uid в список для рассылки
     public ResponseEntity<String> addToSubscription(@RequestBody Map<String, Object> payload) {
+        if (!rawWebSocketHandler.getIsAuth()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
         if (payload.containsKey("measurementValueToAddUids")) {
             List<String> list = (List<String>)payload.get("measurementValueToAddUids");
             for (String element : list) {
@@ -106,11 +117,17 @@ public class RestControllerCk11 {
     //для тестов
     @PostMapping("/api/public/measurement-values/v2.1/data/subscriptions/channels/pubchan-OGjXXUCae-LKlRoL_ib8Vg/subscriptions/mv-34/post")
     public ResponseEntity<String> addToSubscriptionPOST(@RequestBody Map<String, Object> payload) {
+        if (!rawWebSocketHandler.getIsAuth()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
         return addToSubscription(payload);
     }
 
     @PostMapping("/api/public/measurement-values/v2.1/data/subscriptions/channels/pubchan-OGjXXUCae-LKlRoL_ib8Vg/subscriptions")
     public ResponseEntity<String> createSubscription(@RequestBody Map<String, Object> payload) {
+        if (!rawWebSocketHandler.getIsAuth()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
         if (payload.containsKey("subscriptionType")) {
             ResponseEntity<String> answer = sendJsonAnswer("../../13 linux/00_helps/server_answers/create_subscription_result.json");
             return ResponseEntity.created(URI.create("/api/public/measurement-values/v2.1/data/subscriptions/channels/pubchan-OGjXXUCae-LKlRoL_ib8Vg/subscriptions/mv-34"))
@@ -124,8 +141,17 @@ public class RestControllerCk11 {
 
     @PostMapping("/api/public/measurement-values/v2.1/numeric/data/write")
     public ResponseEntity<String> wrtieToSK11(@RequestBody Map<String, Object> payload) {
+        if (!rawWebSocketHandler.getIsAuth()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
         log.info("send to sk11: {}", payload);
         return ResponseEntity.ok().body("{\"writed\":\"ok\"}");
+    }
+
+    @GetMapping("/api/reset_token")
+    public ResponseEntity<String> resetToken() {
+        rawWebSocketHandler.setIsAuth(false);
+        return ResponseEntity.ok().build();
     }
 
     //отправка ответом json-файла
