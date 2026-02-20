@@ -75,7 +75,7 @@ public class RestControllerCk11 {
         if (!rawWebSocketHandler.getIsAuth()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
-        SignalValueList signalDataList = rawWebSocketHandler.generateAndBroadcastSignals(false);
+        SignalValueList signalDataList = rawWebSocketHandler.generateAndBroadcastSignals(false, false);
         if (signalDataList != null) {
             String json = rawWebSocketHandler.toJson(signalDataList);
             return ResponseEntity.ok()

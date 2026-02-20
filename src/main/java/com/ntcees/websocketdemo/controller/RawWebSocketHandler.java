@@ -21,6 +21,10 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
@@ -45,7 +49,8 @@ public class RawWebSocketHandler extends TextWebSocketHandler {
     // Маппинг: sessionId -> каналы, на которые подписан клиент
     private static final Map<String, WebSocketSession> clientSubscriptions = new ConcurrentHashMap<>();
 
-    private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(2);
+    private final ScheduledExecutorService schedulerCurrentMeters = Executors.newScheduledThreadPool(2);
+    private final ScheduledExecutorService schedulerPlanMeters = Executors.newScheduledThreadPool(2);
     private final AtomicInteger counter = new AtomicInteger(0);
     private final AtomicBoolean isAuth = new AtomicBoolean(false);
 
@@ -60,12 +65,14 @@ public class RawWebSocketHandler extends TextWebSocketHandler {
     @PostConstruct
     public void init() {
         // Запускаем генератор данных
-        scheduler.scheduleAtFixedRate(this::generateAndBroadcastSignals, 0, 2, TimeUnit.SECONDS);
+        schedulerCurrentMeters.scheduleAtFixedRate(this::generateAndBroadcastSignals, 0, 1, TimeUnit.SECONDS);
+        schedulerCurrentMeters.scheduleAtFixedRate(this::generateAndBroadcastSignalsPlans, 0, 10, TimeUnit.SECONDS);
     }
 
     @PreDestroy
     public void destroy() {
-        scheduler.shutdown();
+        schedulerCurrentMeters.shutdown();
+        schedulerPlanMeters.shutdown();
     }
 
     @Override
@@ -109,7 +116,7 @@ public class RawWebSocketHandler extends TextWebSocketHandler {
     }
 
     // Генерация и рассылка данных
-    public SignalValueList generateAndBroadcastSignals(boolean sendToWebSocket) {
+    public SignalValueList generateAndBroadcastSignals(boolean sendToWebSocket, boolean isPlans) {
         if (activeSignals.isEmpty()) return null;
 
         if (!this.getIsAuth()) {
@@ -120,28 +127,47 @@ public class RawWebSocketHandler extends TextWebSocketHandler {
             return null;
         }
 
-        SignalValueList all = new SignalValueList();
+        SignalValueList valueList = new SignalValueList();
+        SignalDataList dataList = new SignalDataList();
         activeSignals.keySet().forEach(channel -> {
-            double newValue = Math.sin(System.currentTimeMillis() / 1000.0 + counter.getAndIncrement()) * 100;
-            activeSignals.put(channel, newValue);
+            int count = 1;
+            if (isPlans) count = 24;
 
+            LocalDate date = LocalDate.now(); // Получаем сегодняшнюю дату
+            LocalDateTime midnight = date.atStartOfDay();
 
-            SignalData data = new SignalData(channel, newValue);
-            // Рассылаем всем подписанным клиентам
-            if (sendToWebSocket) {
-                // Формируем SignalDataList
-                SignalDataList list = new SignalDataList();
-                list.getData().getData().add(data);
-                broadcast(list);
-            } else {
-                all.getValue().add(data);
+            for (int i = 0; i < count; i++) {
+                double newValue = Math.sin(System.currentTimeMillis() / 1000.0 + counter.getAndIncrement()) * 100;
+                activeSignals.put(channel, newValue);
+
+                SignalData data = new SignalData(channel, newValue);
+
+                if (isPlans) {
+                    data.setTimeStamp(Instant.ofEpochSecond (midnight.toEpochSecond(ZoneOffset.UTC) + 3600 * i).toString());
+                    data.setTimeStamp2(data.getTimeStamp());
+                }
+
+                if (sendToWebSocket) {
+                    dataList.getData().getData().add(data);
+                } else {
+                    valueList.getValue().add(data);
+                }
             }
         });
-        return all;
+
+        if (sendToWebSocket) {
+            broadcast(dataList);
+        }
+
+        return valueList;
     }
 
     private void generateAndBroadcastSignals() {
-        generateAndBroadcastSignals(true);
+        generateAndBroadcastSignals(true, false);
+    }
+
+    private void generateAndBroadcastSignalsPlans(){
+        generateAndBroadcastSignals(true, true);
     }
 
     private void closeAllSessions() {
