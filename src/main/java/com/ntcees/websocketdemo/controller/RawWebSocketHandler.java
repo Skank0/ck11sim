@@ -134,8 +134,9 @@ public class RawWebSocketHandler extends TextWebSocketHandler {
         SignalValueList valueList = new SignalValueList();
         SignalDataList dataList = new SignalDataList();
         activeSignals.keySet().forEach(channel -> {
+            int meters2DaysCount = 48;
             int count = 1;
-            if (isPlans) count = 48;
+            if (isPlans) count = meters2DaysCount;
 
             LocalDate date = LocalDate.now(); // Получаем сегодняшнюю дату
             LocalDateTime midnight = date.atStartOfDay();
@@ -148,6 +149,9 @@ public class RawWebSocketHandler extends TextWebSocketHandler {
 
                 if (isPlans) {
                     data.setTimeStamp(Instant.ofEpochSecond (midnight.toEpochSecond(ZoneOffset.UTC) + 3600 * i).toString());
+                    data.setTimeStamp2(data.getTimeStamp());
+                } else {
+                    data.setTimeStamp(Instant.ofEpochSecond (midnight.toEpochSecond(ZoneOffset.UTC) + 3600 * (meters2DaysCount - 1)).toString());
                     data.setTimeStamp2(data.getTimeStamp());
                 }
 
