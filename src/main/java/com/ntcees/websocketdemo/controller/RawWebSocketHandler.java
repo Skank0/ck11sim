@@ -50,6 +50,7 @@ public class RawWebSocketHandler extends TextWebSocketHandler {
     private static final Map<String, WebSocketSession> clientSubscriptions = new ConcurrentHashMap<>();
 
     private final ScheduledExecutorService schedulerCurrentMeters = Executors.newScheduledThreadPool(2);
+    private final ScheduledExecutorService schedulerAuth = Executors.newScheduledThreadPool(2);
     private final AtomicInteger counter = new AtomicInteger(0);
     private final AtomicBoolean isAuth = new AtomicBoolean(false);
 
@@ -65,11 +66,17 @@ public class RawWebSocketHandler extends TextWebSocketHandler {
     public void init() {
         // Запускаем генератор данных
         schedulerCurrentMeters.scheduleAtFixedRate(this::generateAndBroadcastSignals, 0, 1, TimeUnit.SECONDS);
+        schedulerAuth.scheduleAtFixedRate(this::setIsAuthFalse, 0, 120, TimeUnit.SECONDS);
+    }
+
+    private void setIsAuthFalse() {
+        setIsAuth(false);
     }
 
     @PreDestroy
     public void destroy() {
         schedulerCurrentMeters.shutdown();
+        schedulerAuth.shutdown();
     }
 
     @Override
