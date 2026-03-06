@@ -19,6 +19,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @RestController
 public class RestControllerCk11 {
@@ -151,13 +152,21 @@ public class RestControllerCk11 {
     }
 
 
+    private AtomicInteger testWriteErrors = new AtomicInteger(0);
     @PostMapping("/api/public/measurement-values/v2.1/numeric/data/write")
     public ResponseEntity<String> wrtieToSK11(@RequestBody Map<String, Object> payload) {
         if (!rawWebSocketHandler.getIsAuth()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
-        log.info("send to sk11: {}", payload);
-        return ResponseEntity.ok().body("{\"writed\":\"ok\"}");
+        if (testWriteErrors.get() < 3) {
+            log.info("imitate bad request send to sk11: {}", payload);
+            testWriteErrors.getAndIncrement();
+            return ResponseEntity.badRequest().body("{\"errors\":[]}");
+        } else {
+            log.info("send to sk11: {}", payload);
+            testWriteErrors.set(0);
+            return ResponseEntity.ok().body("{\"writed\":\"ok\"}");
+        }
     }
 
     @GetMapping("/api/reset_token")
