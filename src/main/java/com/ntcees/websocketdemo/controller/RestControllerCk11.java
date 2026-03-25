@@ -7,6 +7,7 @@ import com.ntcees.websocketdemo.model.SignalValueValueList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -53,13 +54,15 @@ public class RestControllerCk11 {
         return ResponseEntity.ok(new SignalData(id, Math.random() * 100));
     }
 
+    @Value("${server.port:8080}")
+    Integer portModule = 8080;
 
     //todo: port to autowired
     @GetMapping("/api/public/core/v2.1/addresses")
     public ResponseEntity<String> getAddresses() {
         return sendJsonAnswer("../../13 linux/00_helps/server_answers/addresses.json",
                 List.of("https://app-p-srv-balt.oducz.so:9443", "https://app-p-srv-balt.oducz.so"),
-                List.of("http://10.31.224.135:8080", "http://10.31.224.135:8080"));
+                List.of("http://10.31.224.135:" + portModule, "http://10.31.224.135:" + portModule));
     }
 
     @PostMapping("/auth/app/token")
@@ -88,24 +91,43 @@ public class RestControllerCk11 {
         }
     }
 
+    private AtomicInteger testTimeoutServerTableRequest = new AtomicInteger(0);
     //TrymakeRequestToUpdateValues_TAB
     @PostMapping("/api/public/measurement-values/v2.1/numeric/data/get-table")
     //done: сделать генерацию измерений
     public ResponseEntity<String> getTable() {
-        if (!rawWebSocketHandler.getIsAuth()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
-        //return sendJsonAnswer("../../13 linux/00_helps/server_answers/multi_meter_interval_request.json");
-        SignalValueList signalDataList = rawWebSocketHandler.generateAndBroadcastSignals(false, true);
-        if (signalDataList != null) {
-            SignalValueValueList signalValueValueList = new SignalValueValueList();
-            signalValueValueList.getValue().add(new SignalValueValueList.DataWrapperValueValue(signalDataList.getValue()));
-            String json = rawWebSocketHandler.toJson(signalValueValueList);
-            return ResponseEntity.ok()
-                    .header("Content-Type", "application/json; charset=utf-8")
-                    .body(json);
-        } else {
-            return ResponseEntity.noContent().build();
+        synchronized (testTimeoutServerTableRequest) {
+            if (!rawWebSocketHandler.getIsAuth()) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            }
+
+            // todo: исправить повторение формирования ошибки
+            // making timeout 15 sec... (TAB-REQUEST) делается несколько раз вместо одного
+            // (пока на это нет времени)
+            if (testTimeoutServerTableRequest.get() < 30) {
+                testTimeoutServerTableRequest.getAndIncrement();
+            } else {
+                log.info("making timeout 15 sec... (TAB-REQUEST)");
+                testTimeoutServerTableRequest.set(0);
+                try {
+                    Thread.sleep(15000);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+
+            //return sendJsonAnswer("../../13 linux/00_helps/server_answers/multi_meter_interval_request.json");
+            SignalValueList signalDataList = rawWebSocketHandler.generateAndBroadcastSignals(false, true);
+            if (signalDataList != null) {
+                SignalValueValueList signalValueValueList = new SignalValueValueList();
+                signalValueValueList.getValue().add(new SignalValueValueList.DataWrapperValueValue(signalDataList.getValue()));
+                String json = rawWebSocketHandler.toJson(signalValueValueList);
+                return ResponseEntity.ok()
+                        .header("Content-Type", "application/json; charset=utf-8")
+                        .body(json);
+            } else {
+                return ResponseEntity.noContent().build();
+            }
         }
     }
 
@@ -153,19 +175,35 @@ public class RestControllerCk11 {
 
 
     private AtomicInteger testWriteErrors = new AtomicInteger(0);
+    private AtomicInteger testTimeoutServer = new AtomicInteger(0);
     @PostMapping("/api/public/measurement-values/v2.1/numeric/data/write")
     public ResponseEntity<String> wrtieToSK11(@RequestBody Map<String, Object> payload) {
-        if (!rawWebSocketHandler.getIsAuth()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
-        if (testWriteErrors.get() < 3) {
-            log.info("imitate bad request send to sk11: {}", payload);
-            testWriteErrors.getAndIncrement();
-            return ResponseEntity.badRequest().body("{\"errors\":[]}");
-        } else {
-            log.info("send to sk11: {}", payload);
-            testWriteErrors.set(0);
-            return ResponseEntity.ok().body("{\"writed\":\"ok\"}");
+        synchronized (testTimeoutServer) {
+            if (!rawWebSocketHandler.getIsAuth()) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            }
+
+            if (testTimeoutServer.get() < 20) {
+                testTimeoutServer.getAndIncrement();
+            } else {
+                log.info("making timeout 15 sec...");
+                testTimeoutServer.set(0);
+                try {
+                    Thread.sleep(15000);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+
+            if (testWriteErrors.get() < 3) {
+                log.info("imitate bad request send to sk11: {}", payload);
+                testWriteErrors.getAndIncrement();
+                return ResponseEntity.badRequest().body("{\"errors\":[]}");
+            } else {
+                log.info("send to sk11: {}", payload);
+                testWriteErrors.set(0);
+                return ResponseEntity.ok().body("{\"writed\":\"ok\"}");
+            }
         }
     }
 
