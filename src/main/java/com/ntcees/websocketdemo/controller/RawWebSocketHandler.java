@@ -52,6 +52,7 @@ public class RawWebSocketHandler extends TextWebSocketHandler {
     private final ScheduledExecutorService schedulerCurrentMeters1 = Executors.newScheduledThreadPool(2);
     private final ScheduledExecutorService schedulerCurrentMeters2 = Executors.newScheduledThreadPool(2);
     private final ScheduledExecutorService schedulerAuth = Executors.newScheduledThreadPool(2);
+    private final ScheduledExecutorService schedulerWebSocketCloser = Executors.newScheduledThreadPool(2);
     private final AtomicInteger counter = new AtomicInteger(0);
     private final AtomicBoolean isAuth = new AtomicBoolean(false);
 
@@ -69,7 +70,10 @@ public class RawWebSocketHandler extends TextWebSocketHandler {
         schedulerCurrentMeters1.scheduleAtFixedRate(this::generateAndBroadcastSignals, 0, 1, TimeUnit.SECONDS);
         schedulerCurrentMeters2.scheduleAtFixedRate(this::generateAndBroadcastSignals, 0, 750, TimeUnit.MILLISECONDS);
         schedulerAuth.scheduleAtFixedRate(this::setIsAuthFalse, 0, 120, TimeUnit.SECONDS);
+        schedulerWebSocketCloser.scheduleAtFixedRate(this::closeAllWebSocketConnections, 0, 150, TimeUnit.SECONDS);
     }
+
+
 
     private void setIsAuthFalse() {
         setIsAuth(false);
@@ -212,6 +216,23 @@ public class RawWebSocketHandler extends TextWebSocketHandler {
         }
     }
 
+    private void closeAllWebSocketConnections() {
+        synchronized (clientSubscriptions) {
+            for (Map.Entry<String, WebSocketSession> entry : clientSubscriptions.entrySet()) {
+                WebSocketSession session = entry.getValue();
+                try {
+                    if (session != null && session.isOpen()) {
+                        session.close(); // Закрыть соединение
+                        log.info("Закрытие соединения с {}", session.getRemoteAddress());
+                    }
+                } catch (Exception e) {
+                    // Логирование ошибки, если что-то пошло не так
+                    log.error("Error closing WebSocket session: {}", e.getMessage());
+                }
+            }
+            clientSubscriptions.clear();
+        }
+    }
 
     private void sendJsonFile(WebSocketSession session, String resourcePath) {
         try {
