@@ -4,12 +4,19 @@ package com.ntcees.websocketdemo.controller;
 import com.ntcees.websocketdemo.model.SignalData;
 import com.ntcees.websocketdemo.model.SignalValueList;
 import com.ntcees.websocketdemo.model.SignalValueValueList;
+import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.Resource;
+import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -23,6 +30,7 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @RestController
+@Controller
 public class RestControllerCk11 {
 
     private static final Logger log = LoggerFactory.getLogger(RawWebSocketHandler.class);
@@ -54,8 +62,8 @@ public class RestControllerCk11 {
         return ResponseEntity.ok(new SignalData(id, Math.random() * 100));
     }
 
-    @Value("${server.port:8080}")
-    Integer portModule = 8080;
+    @Value("${server.port:8090}")
+    Integer portModule = 8090;
 
     //todo: port to autowired
     @GetMapping("/api/public/core/v2.1/addresses")
@@ -211,6 +219,34 @@ public class RestControllerCk11 {
     public ResponseEntity<String> resetToken() {
         rawWebSocketHandler.setIsAuth(false);
         return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/api/switch_off_rand")
+    public ResponseEntity<String> switchOffRand() {
+        rawWebSocketHandler.setIsRand(false);
+        log.info("[MANUAL] rand - отключен");
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/api/set-value")
+    public ResponseEntity<String> setValue(@RequestParam String uid, @RequestParam Double value) {
+        if (!uid.isEmpty() && !uid.isBlank() && value != null) {
+            rawWebSocketHandler.setSignalValue(uid, value);
+            return ResponseEntity.status(303)
+                    .location(URI.create("/"))
+                    .build();
+        }
+        return ResponseEntity.badRequest().body("{\"errors\":[]}");
+    }
+
+    @GetMapping("/")
+    public ResponseEntity<Resource> homePage(Model model, HttpServletRequest request) {
+        Resource resource = new ClassPathResource("testWebSocketPage.html");
+
+        return ResponseEntity.ok()
+                .contentType(MediaType.TEXT_HTML)
+                .cacheControl(CacheControl.noCache())
+                .body(resource);
     }
 
     //отправка ответом json-файла

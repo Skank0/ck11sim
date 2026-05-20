@@ -5,15 +5,125 @@
     <meta content="text/html;charset=utf-8" http-equiv="Content-Type">
     <meta content="utf-8" http-equiv="encoding">
 </head>
+<style>
+    .signal-input {
+  background: #f8f9fa;
+  border-bottom: 2px solid #e9ecef;
+  margin-top: 20px;
+  padding: 20px;
+  display: block;
+  min-width: 100px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.signal-input form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.signal-input label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+}
+
+.signal-input input {
+  min-width: 100px;
+  width: 100%;
+  max-width: 300px;
+  padding: 8px 12px;
+  border: 1px solid #ced4da;
+  border-radius: 6px;
+  font-size: 14px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  background: #fff;
+}
+
+.signal-input input:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.15);
+}
+
+.signal-input input::placeholder {
+  color: #adb5bd;
+}
+
+/* Кнопка внутри формы */
+.signal-input button[type="submit"] {
+  align-self: flex-start;
+  padding: 8px 20px;
+  background: #007bff;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+}
+
+.signal-input button[type="submit"]:hover {
+  background: #0056b3;
+}
+
+.signal-input button[type="submit"]:active {
+  transform: scale(0.98);
+}
+
+/* Отдельная кнопка #button_rand */
+#button_rand {
+  padding: 8px 16px;
+  background: #6c757d;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+#button_rand:hover {
+  background: #545b62;
+}
+</style>
 <body>
 <p>Adding signal: powershell (new)</p>
-<p>curl -X POST http://localhost:8080/api/signal -H "Content-Type: application/json" -d '{"uid": "sensor1"}'</p>
+<p>curl -X POST http://localhost:8090/api/signal -H "Content-Type: application/json" -d '{"uid": "sensor1"}'</p>
 
 <p>Adding signal: powershell (old)</p>
 <p>$body = @{ uid = "sensor1" } | ConvertTo-Json</p>
-<p>Invoke-RestMethod -Uri "http://localhost:8080/api/signal" -Method Post -Body $body -ContentType "application/json"</p>
+<p>Invoke-RestMethod -Uri "http://localhost:8090/api/signal" -Method Post -Body $body -ContentType "application/json"</p>
 
-<button onclick="fetch('http://localhost:8080/api/reset_token')" type="button" id="button">Сброс токена</button>
+<button onclick="fetch('http://localhost:8090/api/reset_token')" type="button" id="button_token">Сброс токена</button>
+
+
+<div class="signal-input">
+    <p>Форма ручного ввода значений сигналов</p>
+    <button onclick="fetch('http://localhost:8090/api/switch_off_rand')" type="button" id="button_rand">
+        Отключить rand (для всех сигналов)
+    </button>
+
+    <form method="POST" action="/api/set-value">
+        <label>
+            Uid сигнала (например, bf18dfc9-50b7-4a47-9c3f-5d4c69948675). Для планов меняются значения для ВСЕХ часов:
+            <input type="text" name="uid" required placeholder="bf18dfc9-50b7-4a47-9c3f-5d4c69948675">
+        </label>
+
+        <label>
+            Значение сигнала (float):
+            <input type="number" name="value" step="any" required placeholder="3.14">
+        </label>
+
+        <button type="submit">Задать значение сигнала</button>
+    </form>
+</div>
 
 <div id="output"></div>
 
@@ -21,7 +131,7 @@
 
 <script>
     // Создаём нативный WebSocket-клиент
-    const socket = new WebSocket('ws://localhost:8080/api/public/core/v2.1/channels/open');
+    const socket = new WebSocket('ws://localhost:8090/api/public/core/v2.1/channels/open');
 
     // Обработчик подключения
     socket.onopen = function(event) {

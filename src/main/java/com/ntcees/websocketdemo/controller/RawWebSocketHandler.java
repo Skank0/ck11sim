@@ -55,6 +55,7 @@ public class RawWebSocketHandler extends TextWebSocketHandler {
     private final ScheduledExecutorService schedulerWebSocketCloser = Executors.newScheduledThreadPool(2);
     private final AtomicInteger counter = new AtomicInteger(0);
     private final AtomicBoolean isAuth = new AtomicBoolean(false);
+    private final AtomicBoolean isRand = new AtomicBoolean(true);
 
     public boolean getIsAuth() {
         return isAuth.get();
@@ -62,6 +63,10 @@ public class RawWebSocketHandler extends TextWebSocketHandler {
 
     public void setIsAuth(boolean newValue) {
         isAuth.set(newValue);
+    }
+
+    public void setIsRand(boolean newValue) {
+        isRand.set(newValue);
     }
 
     @PostConstruct
@@ -126,6 +131,11 @@ public class RawWebSocketHandler extends TextWebSocketHandler {
         }
     }
 
+    public void setSignalValue(String channel, double value) {
+        activeSignals.put(channel, value);
+        log.info("[MANUAL] Значение параметра {} задано равным {}", channel, value);
+    }
+
     // Генерация и рассылка данных
     public SignalValueList generateAndBroadcastSignals(boolean sendToWebSocket, boolean isPlans) {
         if (activeSignals.isEmpty()) return null;
@@ -149,7 +159,14 @@ public class RawWebSocketHandler extends TextWebSocketHandler {
             LocalDateTime midnight = date.atStartOfDay();
 
             for (int i = 0; i < count; i++) {
-                double newValue = Math.sin(System.currentTimeMillis() / 1000.0 + counter.getAndIncrement()) * 100;
+                double newValue = 0;
+                if (isRand.get()) {
+                    newValue = Math.sin(System.currentTimeMillis() / 1000.0 + counter.getAndIncrement()) * 100;
+                } else {
+                    if (activeSignals.containsKey(channel)) {
+                        newValue = activeSignals.get(channel);
+                    }
+                }
                 activeSignals.put(channel, newValue);
 
                 SignalData data = new SignalData(channel, newValue);
