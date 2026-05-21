@@ -55,7 +55,8 @@ public class RawWebSocketHandler extends TextWebSocketHandler {
     private final ScheduledExecutorService schedulerWebSocketCloser = Executors.newScheduledThreadPool(2);
     private final AtomicInteger counter = new AtomicInteger(0);
     private final AtomicBoolean isAuth = new AtomicBoolean(false);
-    private final AtomicBoolean isRand = new AtomicBoolean(true);
+    private final AtomicBoolean isRand = new AtomicBoolean(false);
+    private final AtomicBoolean isKeepSignals = new AtomicBoolean(true);
 
     public boolean getIsAuth() {
         return isAuth.get();
@@ -127,7 +128,9 @@ public class RawWebSocketHandler extends TextWebSocketHandler {
         log.info("Клиент отключился: {} (статус: {})", sessionId, status);
         clientSubscriptions.remove(sessionId);
         if (clientSubscriptions.isEmpty()) {
-            activeSignals.clear();
+            if (!isKeepSignals.get()) {
+                activeSignals.clear();
+            }
         }
     }
 
@@ -278,7 +281,9 @@ public class RawWebSocketHandler extends TextWebSocketHandler {
 
     public void addSignal(String id) {
         log.debug("addSignal:{}", id);
-        activeSignals.put(id, 0.0);
+        if (!activeSignals.containsKey(id)) {
+            activeSignals.put(id, 0.0);
+        }
     }
 
     public void removeSignal(String id) {
