@@ -178,7 +178,8 @@ public class RawWebSocketHandler extends TextWebSocketHandler {
                     data.setTimeStamp(Instant.ofEpochSecond (midnight.toEpochSecond(ZoneOffset.UTC) + 3600 * i).toString());
                     data.setTimeStamp2(data.getTimeStamp());
                 } else {
-                    data.setTimeStamp(Instant.ofEpochSecond (midnight.toEpochSecond(ZoneOffset.UTC) + 3600 * (meters2DaysCount - 1)).toString());
+                    //data.setTimeStamp(Instant.ofEpochSecond (midnight.toEpochSecond(ZoneOffset.UTC) + 3600 * (meters2DaysCount - 1)).toString());
+                    data.setTimeStamp(data.getTimeStamp());
                     data.setTimeStamp2(data.getTimeStamp());
                 }
 
