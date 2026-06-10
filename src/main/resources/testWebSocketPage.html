@@ -130,6 +130,38 @@
 #button_rand:hover {
   background: #545b62;
 }
+
+.upload-form {
+    max-width: 600px;
+    margin: 20px;
+    padding: 20px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    background: #f9f9f9;
+}
+.form-group { margin-bottom: 15px; }
+.form-group label { display: block; margin-bottom: 5px; font-weight: bold; }
+.form-group input { width: 100%; padding: 8px; box-sizing: border-box; }
+.btn {
+    background: #007bff; color: white; border: none;
+    padding: 10px 20px; border-radius: 4px; cursor: pointer;
+}
+.btn:hover { background: #0056b3; }
+.btn:disabled { background: #ccc; cursor: not-allowed; }
+#result {
+    margin-top: 20px;
+    max-height: 400px;
+    overflow-y: auto;
+    border: 1px solid #ddd;
+    padding: 10px;
+    background: #fff;
+    font-family: monospace;
+    font-size: 12px;
+    white-space: pre-wrap;
+}
+.error { color: #dc3545; }
+.success { color: #28a745; }
+
 </style>
 <body>
 <p>Adding signal: powershell (new)</p>
@@ -139,12 +171,12 @@
 <p>$body = @{ uid = "sensor1" } | ConvertTo-Json</p>
 <p>Invoke-RestMethod -Uri "http://localhost:8090/api/signal" -Method Post -Body $body -ContentType "application/json"</p>
 
-<button onclick="fetch('http://localhost:8090/api/reset_token')" type="button" id="button_token">Сброс токена</button>
+<button onclick="fetch('/api/reset_token')" type="button" id="button_token">Сброс токена</button>
 
 
 <div class="signal-input">
     <p>Форма ручного ввода значений сигналов</p>
-    <button onclick="fetch('http://localhost:8090/api/switch_off_rand')" type="button" id="button_rand">
+    <button onclick="fetch('/api/switch_off_rand')" type="button" id="button_rand">
         Отключить rand (для всех сигналов)
     </button>
 
@@ -157,7 +189,7 @@
         <button id="clearLog" style="margin-left: 20px;">Очистить лог</button>
     </div>
 
-    <form method="POST" action="http://localhost:8090/api/set-value">
+    <form method="POST" action="/api/set-value">
         <label>
             Uid сигнала (например, bf18dfc9-50b7-4a47-9c3f-5d4c69948675). Для планов меняются значения для ВСЕХ часов:
             <input type="text" name="uid" required placeholder="bf18dfc9-50b7-4a47-9c3f-5d4c69948675">
@@ -175,6 +207,22 @@
 
         <button type="submit">Задать значение сигнала</button>
     </form>
+
+    <div class="upload-form">
+        <h3>📊 Загрузка CSV-файла</h3>
+        <p><small>Разделитель: точка с запятой (;)</small></p>
+
+        <form id="csvForm">
+            <div class="form-group">
+                <label for="csvFile">Выберите файл:</label>
+                <input type="file" id="csvFile" name="file" accept=".csv,.txt" required>
+            </div>
+            <button type="submit" class="btn" id="uploadBtn">Загрузить и обработать</button>
+        </form>
+
+        <div id="result"></div>
+    </div>
+
 </div>
 
 <div id="output"></div>
@@ -250,5 +298,87 @@
             console.log('Соединение закрыто:', event);
         };
 </script>
+
+<script>
+    document.getElementById('csvForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        const fileInput = document.getElementById('csvFile');
+        const resultDiv = document.getElementById('result');
+        const uploadBtn = document.getElementById('uploadBtn');
+
+        if (!fileInput.files[0]) {
+            resultDiv.innerHTML = '<span class="error">❌ Выберите файл!</span>';
+            return;
+        }
+
+        // UI: показываем загрузку
+        uploadBtn.disabled = true;
+        uploadBtn.textContent = '⏳ Загрузка...';
+        resultDiv.innerHTML = '';
+
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
+
+        try {
+            const response = await fetch('/api/load-csv', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+
+            // Проверка на ошибку с бэкенда
+            if (data.error) {
+                resultDiv.innerHTML = '<span class="error">❌ Ошибка обработки файла</span>';
+                return;
+            }
+
+            // Отображаем результат
+            displayResult(data);
+            resultDiv.innerHTML = `<span class="success">✅ Файл успешно обработан!</span><br><br>` + resultDiv.innerHTML;
+
+        } catch (error) {
+            resultDiv.innerHTML = `<span class="error">❌ Ошибка: ${error.message}</span>`;
+            console.error('Upload error:', error);
+        } finally {
+            uploadBtn.disabled = false;
+            uploadBtn.textContent = 'Загрузить и обработать';
+        }
+    });
+
+    /**
+     * Отображает Map<String, List<Double>> в читаемом виде
+     */
+    function displayResult(data) {
+        const resultDiv = document.getElementById('result');
+        let html = '<strong>📋 Результат:</strong><br><br>';
+
+        for (const [column, values] of Object.entries(data)) {
+            html += `<strong>${column}:</strong> [${values.join(', ')}]<br>`;
+        }
+
+        // Статистика
+        html += `<br><strong>📈 Статистика:</strong><br>`;
+        for (const [column, values] of Object.entries(data)) {
+            if (values.length > 0) {
+                const min = Math.min(...values);
+                const max = Math.max(...values);
+                const avg = values.reduce((a, b) => a + b, 0) / values.length;
+                html += `${column}: min=${min.toFixed(2)}, max=${max.toFixed(2)}, avg=${avg.toFixed(2)}<br>`;
+            }
+        }
+
+        resultDiv.innerHTML += html;
+
+        // Автопрокрутка вниз
+        resultDiv.scrollTop = resultDiv.scrollHeight;
+    }
+</script>
+
 </body>
 </html>
