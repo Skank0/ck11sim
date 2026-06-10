@@ -7,6 +7,7 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.ntcees.websocketdemo.model.SignalData;
 import com.ntcees.websocketdemo.model.SignalDataList;
 import com.ntcees.websocketdemo.model.SignalValueList;
+import com.ntcees.websocketdemo.utils.FileProcessingService;
 import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,8 +20,10 @@ import jakarta.annotation.PostConstruct;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -49,6 +52,8 @@ public class RawWebSocketHandler extends TextWebSocketHandler {
     // Маппинг: sessionId -> каналы, на которые подписан клиент
     private static final Map<String, WebSocketSession> clientSubscriptions = new ConcurrentHashMap<>();
 
+    private static List<String> uidPlans = new ArrayList<>();
+
     private final ScheduledExecutorService schedulerCurrentMeters1 = Executors.newScheduledThreadPool(2);
     private final ScheduledExecutorService schedulerCurrentMeters2 = Executors.newScheduledThreadPool(2);
     private final ScheduledExecutorService schedulerAuth = Executors.newScheduledThreadPool(2);
@@ -73,10 +78,18 @@ public class RawWebSocketHandler extends TextWebSocketHandler {
     @PostConstruct
     public void init() {
         // Запускаем генератор данных
-        schedulerCurrentMeters1.scheduleAtFixedRate(this::generateAndBroadcastSignals, 0, 1, TimeUnit.SECONDS);
-        schedulerCurrentMeters2.scheduleAtFixedRate(this::generateAndBroadcastSignalsPlans, 0, 750, TimeUnit.MILLISECONDS);
+        schedulerCurrentMeters1.scheduleAtFixedRate(this::generateAndBroadcastSignals, 0, 2, TimeUnit.SECONDS);
+        schedulerCurrentMeters2.scheduleAtFixedRate(this::generateAndBroadcastSignalsPlans, 0, 10, TimeUnit.SECONDS);
         schedulerAuth.scheduleAtFixedRate(this::setIsAuthFalse, 12000, 12000, TimeUnit.SECONDS);
         schedulerWebSocketCloser.scheduleAtFixedRate(this::closeAllWebSocketConnections, 0, 150, TimeUnit.SECONDS);
+
+        try {
+            ClassLoader classLoader = getClass().getClassLoader();
+            URL resourceUrl = classLoader.getResource("uidPlans.txt");
+            uidPlans = FileProcessingService.readTrimmedNonEmptyLines(Paths.get(resourceUrl.toURI()));
+        } catch (Exception e) {
+            log.info("uidPlans.txt не загружен");
+        }
     }
 
 
@@ -171,46 +184,51 @@ public class RawWebSocketHandler extends TextWebSocketHandler {
         SignalValueList valueList = new SignalValueList();
         SignalDataList dataList = new SignalDataList();
         activeSignals.keySet().forEach(channel -> {
-            int meters2DaysCount = 48;
-            int count = 1;
-            if (isPlans) count = meters2DaysCount;
 
-            LocalDate date = LocalDate.now(); // Получаем сегодняшнюю дату
-            LocalDateTime midnight = date.atStartOfDay();
+            if ( (isPlans && uidPlans.contains(channel)) ||
+                 (!isPlans && !uidPlans.contains(channel))) {
 
-            for (int i = 0; i < count; i++) {
-                double newValue = 0;
-                if (isRand.get()) {
-                    newValue = Math.sin(System.currentTimeMillis() / 1000.0 + counter.getAndIncrement()) * 100;
-                } else {
-                    if (activeSignals.containsKey(channel)) {
-                        if (activeSignals.get(channel).containsKey(i)) {
-                            newValue = activeSignals.get(channel).get(i);
+                int meters2DaysCount = 48;
+                int count = 1;
+                if (isPlans) count = meters2DaysCount;
+
+                LocalDate date = LocalDate.now(); // Получаем сегодняшнюю дату
+                LocalDateTime midnight = date.atStartOfDay();
+
+                for (int i = 0; i < count; i++) {
+                    double newValue = 0;
+                    if (isRand.get()) {
+                        newValue = Math.sin(System.currentTimeMillis() / 1000.0 + counter.getAndIncrement()) * 100;
+                    } else {
+                        if (activeSignals.containsKey(channel)) {
+                            if (activeSignals.get(channel).containsKey(i)) {
+                                newValue = activeSignals.get(channel).get(i);
+                            }
                         }
                     }
-                }
-                setSignalValue(channel, i, newValue, false);
+                    setSignalValue(channel, i, newValue, false);
 
-                SignalData data = new SignalData(channel, newValue);
+                    SignalData data = new SignalData(channel, newValue);
 
-                if (isPlans) {
-                    data.setTimeStamp(Instant.ofEpochSecond (midnight.toEpochSecond(ZoneOffset.UTC) + 3600 * i).toString());
-                    data.setTimeStamp2(data.getTimeStamp());
-                } else {
-                    //data.setTimeStamp(Instant.ofEpochSecond (midnight.toEpochSecond(ZoneOffset.UTC) + 3600 * (meters2DaysCount - 1)).toString());
-                    data.setTimeStamp(data.getTimeStamp());
-                    data.setTimeStamp2(data.getTimeStamp());
-                }
+                    if (isPlans) {
+                        data.setTimeStamp(Instant.ofEpochSecond(midnight.toEpochSecond(ZoneOffset.UTC) + 3600 * i).toString());
+                        data.setTimeStamp2(data.getTimeStamp());
+                    } else {
+                        //data.setTimeStamp(Instant.ofEpochSecond (midnight.toEpochSecond(ZoneOffset.UTC) + 3600 * (meters2DaysCount - 1)).toString());
+                        data.setTimeStamp(data.getTimeStamp());
+                        data.setTimeStamp2(data.getTimeStamp());
+                    }
 
-                if (sendToWebSocket) {
-                    dataList.getData().getData().add(data);
-                } else {
-                    valueList.getValue().add(data);
+                    if (sendToWebSocket) {
+                        dataList.getData().getData().add(data);
+                    } else {
+                        valueList.getValue().add(data);
+                    }
                 }
             }
         });
 
-        if (sendToWebSocket) {
+        if (sendToWebSocket && !dataList.getData().getData().isEmpty()) {
             broadcast(dataList);
         }
 

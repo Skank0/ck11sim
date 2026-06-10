@@ -1,5 +1,6 @@
-package com.ntcees.websocketdemo.controller;
+package com.ntcees.websocketdemo.utils;
 
+import com.ntcees.websocketdemo.controller.RawWebSocketHandler;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -21,7 +22,7 @@ import java.util.*;
 public class CsvUploadController {
 
     @Autowired
-    private RawWebSocketHandler  rawWebSocketHandler;
+    private RawWebSocketHandler rawWebSocketHandler;
 
     @PostMapping(value = "/load-csv", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<Map<String, List<Double>>> uploadCsv(

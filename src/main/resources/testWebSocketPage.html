@@ -171,6 +171,8 @@
 <p>$body = @{ uid = "sensor1" } | ConvertTo-Json</p>
 <p>Invoke-RestMethod -Uri "http://localhost:8090/api/signal" -Method Post -Body $body -ContentType "application/json"</p>
 
+<p>Добавлена возможность загрузки CSV-таблицы значений параметров (в столбцах - заголовок - название параметра (uid), по строкам (49 шт.) - значения)</p>
+<p>Добавлена возможность записи в текстовый файл (uidPlans.txt) uid параметров, которые будут обрабатываться как плановые.</p>
 <button onclick="fetch('/api/reset_token')" type="button" id="button_token">Сброс токена</button>
 
 
@@ -266,9 +268,16 @@
             try {
                 const data = JSON.parse(event.data); // Ожидаем SignalDataList: { "value": [...] }
 
-                if (Array.isArray(data.data?.data)) {
+                var mdata;
+                if ('data' in data.data) {
+                    mdata = data.data.data;
+                } else {
+                    mdata = data.data;
+                }
 
-                    data.data.data.forEach(item => {
+                if (Array.isArray(mdata)) {
+
+                    mdata.forEach(item => {
                         const logEntry = `ID: ${item.uid}, Value: ${item.value?.toFixed(2) ?? 'N/A'}, qCode: ${item.qCode}, timeStamp: ${item.timeStamp}, timeStamp2: ${item.timeStamp2}`;
 
                         if (logUpdatesEnabled) {
