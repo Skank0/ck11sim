@@ -89,13 +89,51 @@
   transition: background 0.2s;
 }
 
+.controls {
+    margin: 10px 0;
+    padding: 8px;
+    background: #f5f5f5;
+    border-radius: 4px;
+}
+
+.log-container {
+    max-height: 400px;
+    overflow-y: auto;
+    border: 1px solid #ccc;
+    padding: 10px;
+    font-family: monospace;
+    font-size: 12px;
+    background: #fff;
+}
+
+.log-container div {
+    padding: 2px 0;
+    border-bottom: 1px solid #eee;
+}
+
+#output {
+    /* Фиксированная высота */
+    height: 400px;
+
+    /* Вертикальная прокрутка при переполнении */
+    overflow-y: auto;
+
+    /* Визуальное оформление */
+    border: 1px solid #ccc;
+    padding: 10px;
+    font-family: monospace;
+    font-size: 12px;
+    background: #fff;
+    white-space: pre-wrap;  /* Сохраняет форматирование текста */
+}
+
 #button_rand:hover {
   background: #545b62;
 }
 </style>
 <body>
 <p>Adding signal: powershell (new)</p>
-<p>curl -X POST http://localhost:8090/api/signal -H "Content-Type: application/json" -d '{"uid": "sensor1"}'</p>
+<p>curl.exe -X POST http://localhost:8090/api/signal -H "Content-Type: application/json" -d '{"uid": "sensor1"}'</p>
 
 <p>Adding signal: powershell (old)</p>
 <p>$body = @{ uid = "sensor1" } | ConvertTo-Json</p>
@@ -110,10 +148,24 @@
         Отключить rand (для всех сигналов)
     </button>
 
-    <form method="POST" action="/api/set-value">
+    <!-- Панель управления -->
+    <div class="controls">
+        <label>
+            <input type="checkbox" id="logUpdates" unchecked>
+            Писать в лог обновления
+        </label>
+        <button id="clearLog" style="margin-left: 20px;">Очистить лог</button>
+    </div>
+
+    <form method="POST" action="http://localhost:8090/api/set-value">
         <label>
             Uid сигнала (например, bf18dfc9-50b7-4a47-9c3f-5d4c69948675). Для планов меняются значения для ВСЕХ часов:
             <input type="text" name="uid" required placeholder="bf18dfc9-50b7-4a47-9c3f-5d4c69948675">
+        </label>
+
+        <label>
+            Номер интервала (0-48) (integer) (Примечание: -1 задаст все 49 значений):
+            <input type="number" name="number" step="1" required placeholder="0">
         </label>
 
         <label>
@@ -130,48 +182,73 @@
 
 
 <script>
-    // Создаём нативный WebSocket-клиент
-    const socket = new WebSocket('ws://localhost:8090/api/public/core/v2.1/channels/open');
 
-    // Обработчик подключения
-    socket.onopen = function(event) {
-        console.log('Подключено к WebSocket:', event);
+        // Глобальная переменная для состояния чекбокса
+        let logUpdatesEnabled = false;
 
-        // Отправляем команду подписки (ваш протокол)
-        const subscribeMessage = {
-            type: "subscribe",
-            channel: "pubchan-OGjXXUCae-LKlRoL_ib8Vg"
+        // Обработчик изменения чекбокса
+        document.getElementById('logUpdates')?.addEventListener('change', function(e) {
+            logUpdatesEnabled = e.target.checked;
+            console.log(`Логирование обновлений: ${logUpdatesEnabled ? 'включено' : 'выключено'}`);
+        });
+
+        // Кнопка очистки лога
+        document.getElementById('clearLog').addEventListener('click', () => {
+            output.innerHTML = '';
+        });
+
+
+        // Создаём нативный WebSocket-клиент
+        const socket = new WebSocket('ws://localhost:8090/api/public/core/v2.1/channels/open');
+
+        // Обработчик подключения
+        socket.onopen = function(event) {
+            console.log('Подключено к WebSocket:', event);
+
+            // Отправляем команду подписки (ваш протокол)
+            const subscribeMessage = {
+                type: "subscribe",
+                channel: "pubchan-OGjXXUCae-LKlRoL_ib8Vg"
+            };
+            socket.send(JSON.stringify(subscribeMessage));
         };
-        socket.send(JSON.stringify(subscribeMessage));
-    };
 
-    // Обработчик входящих сообщений
-    socket.onmessage = function(event) {
-        try {
-            const data = JSON.parse(event.data); // Ожидаем SignalDataList: { "value": [...] }
+        // Обработчик входящих сообщений
+        socket.onmessage = function(event) {
+            try {
+                const data = JSON.parse(event.data); // Ожидаем SignalDataList: { "value": [...] }
 
-            if (Array.isArray(data.value)) {
-                data.value.forEach(item => {
-                    document.getElementById('output').innerHTML +=
-                        `<div>ID: ${item.uid}, Value: ${item.value.toFixed(2)}, qCode: ${item.qCode}, timestamp: ${item.timestamp}, timestamp2: ${item.timestamp2}</div>`;
-                });
-            } else {
-                console.error("Ожидался массив в поле 'value'", data);
+                if (Array.isArray(data.data?.data)) {
+
+                    data.data.data.forEach(item => {
+                        const logEntry = `ID: ${item.uid}, Value: ${item.value?.toFixed(2) ?? 'N/A'}, qCode: ${item.qCode}, timeStamp: ${item.timeStamp}, timeStamp2: ${item.timeStamp2}`;
+
+                        if (logUpdatesEnabled) {
+                            const output = document.getElementById('output');
+                            if (output) {
+                                output.innerHTML += `<div>${logEntry}</div>`;
+                                // Автопрокрутка вниз
+                                output.scrollTop = output.scrollHeight;
+                            }
+                        }
+                    });
+                } else {
+                    console.error("Ожидался массив в поле 'value'", data);
+                }
+            } catch (e) {
+                console.error("Ошибка обработки сообщения:", e, event.data);
             }
-        } catch (e) {
-            console.error("Ошибка обработки сообщения:", e, event.data);
-        }
-    };
+        };
 
-    // Обработчик ошибок
-    socket.onerror = function(error) {
-        console.error('Ошибка WebSocket:', error);
-    };
+        // Обработчик ошибок
+        socket.onerror = function(error) {
+            console.error('Ошибка WebSocket:', error);
+        };
 
-    // Обработчик закрытия соединения
-    socket.onclose = function(event) {
-        console.log('Соединение закрыто:', event);
-    };
+        // Обработчик закрытия соединения
+        socket.onclose = function(event) {
+            console.log('Соединение закрыто:', event);
+        };
 </script>
 </body>
 </html>

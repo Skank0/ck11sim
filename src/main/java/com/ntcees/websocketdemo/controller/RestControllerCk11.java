@@ -229,9 +229,9 @@ public class RestControllerCk11 {
     }
 
     @PostMapping("/api/set-value")
-    public ResponseEntity<String> setValue(@RequestParam String uid, @RequestParam Double value) {
-        if (!uid.isEmpty() && !uid.isBlank() && value != null) {
-            rawWebSocketHandler.setSignalValue(uid, value);
+    public ResponseEntity<String> setValue(@RequestParam String uid, @RequestParam Integer number, @RequestParam Double value) {
+        if (!uid.isEmpty() && !uid.isBlank() && value != null && number != null) {
+            rawWebSocketHandler.setSignalValue(uid, number, value, true);
             return ResponseEntity.status(303)
                     .location(URI.create("/"))
                     .build();

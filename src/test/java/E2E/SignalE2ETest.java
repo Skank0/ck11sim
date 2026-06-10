@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ntcees.ApplicationCK11sim;
 import com.ntcees.websocketdemo.controller.RawWebSocketHandler;
 import com.ntcees.websocketdemo.model.SignalDataList;
-import com.ntcees.websocketdemo.model.SignalValueList;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -33,6 +32,7 @@ import java.util.concurrent.TimeUnit;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, classes = ApplicationCK11sim.class)
+//todo: починить тест
 class SignalE2ETest {
 
     private static final Logger log = LoggerFactory.getLogger(RawWebSocketHandler.class);
@@ -51,8 +51,13 @@ class SignalE2ETest {
     private WebSocketConnectionManager connectionManager;
     private LinkedBlockingQueue<String> receivedMessages = new LinkedBlockingQueue<>();
 
+    @Autowired
+    private RawWebSocketHandler rawWebSocketHandler;
+
     @BeforeEach
     void setup() {
+        rawWebSocketHandler.setIsAuth(true);
+
         headers = new WebSocketHttpHeaders();
         client = new StandardWebSocketClient();
         // Подключаемся к эндпоинту

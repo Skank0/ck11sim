@@ -44,7 +44,7 @@ public class RawWebSocketHandler extends TextWebSocketHandler {
     private static final Logger log = LoggerFactory.getLogger(RawWebSocketHandler.class);
 
     // Хранилище активных сигналов: id -> текущее значение
-    private final Map<String, Double> activeSignals = new ConcurrentHashMap<>();
+    private final Map<String, Map<Integer, Double>> activeSignals = new ConcurrentHashMap<>();
 
     // Маппинг: sessionId -> каналы, на которые подписан клиент
     private static final Map<String, WebSocketSession> clientSubscriptions = new ConcurrentHashMap<>();
@@ -54,7 +54,7 @@ public class RawWebSocketHandler extends TextWebSocketHandler {
     private final ScheduledExecutorService schedulerAuth = Executors.newScheduledThreadPool(2);
     private final ScheduledExecutorService schedulerWebSocketCloser = Executors.newScheduledThreadPool(2);
     private final AtomicInteger counter = new AtomicInteger(0);
-    private final AtomicBoolean isAuth = new AtomicBoolean(false);
+    private final AtomicBoolean isAuth = new AtomicBoolean(true);
     private final AtomicBoolean isRand = new AtomicBoolean(false);
     private final AtomicBoolean isKeepSignals = new AtomicBoolean(true);
 
@@ -74,8 +74,8 @@ public class RawWebSocketHandler extends TextWebSocketHandler {
     public void init() {
         // Запускаем генератор данных
         schedulerCurrentMeters1.scheduleAtFixedRate(this::generateAndBroadcastSignals, 0, 1, TimeUnit.SECONDS);
-        schedulerCurrentMeters2.scheduleAtFixedRate(this::generateAndBroadcastSignals, 0, 750, TimeUnit.MILLISECONDS);
-        schedulerAuth.scheduleAtFixedRate(this::setIsAuthFalse, 0, 120, TimeUnit.SECONDS);
+        schedulerCurrentMeters2.scheduleAtFixedRate(this::generateAndBroadcastSignalsPlans, 0, 750, TimeUnit.MILLISECONDS);
+        schedulerAuth.scheduleAtFixedRate(this::setIsAuthFalse, 12000, 12000, TimeUnit.SECONDS);
         schedulerWebSocketCloser.scheduleAtFixedRate(this::closeAllWebSocketConnections, 0, 150, TimeUnit.SECONDS);
     }
 
@@ -95,7 +95,7 @@ public class RawWebSocketHandler extends TextWebSocketHandler {
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
         String sessionId = session.getId();
-        log.info("Клиент подключился: {}", sessionId);
+        log.info("Клиент подключился: {}, IP: {}", sessionId, session.getRemoteAddress());
         clientSubscriptions.put(sessionId, session);
 
         // Отправляем первое сообщение
@@ -134,9 +134,25 @@ public class RawWebSocketHandler extends TextWebSocketHandler {
         }
     }
 
-    public void setSignalValue(String channel, double value) {
-        activeSignals.put(channel, value);
-        log.info("[MANUAL] Значение параметра {} задано равным {}", channel, value);
+    public void setSignalValue48(String channel, int number, double value, boolean isManual) {
+        for (int i = 0; i < 48; i++) {
+            setSignalValue(channel, i, value, isManual);
+        }
+    }
+
+    public void setSignalValue(String channel, int number, double value, boolean isManual) {
+        if (number == -1) {
+            setSignalValue48(channel, number, value, isManual);
+        } else {
+            if (activeSignals.containsKey(channel)) {
+                activeSignals.get(channel).put(number, value);
+            } else {
+                activeSignals.put(channel, new HashMap<>(Map.of(number, value)));
+            }
+            if (isManual) {
+                log.info("[MANUAL] Значение параметра {} [{}] задано равным {}", channel, number, value);
+            }
+        }
     }
 
     // Генерация и рассылка данных
@@ -148,6 +164,7 @@ public class RawWebSocketHandler extends TextWebSocketHandler {
             list.setType("ru.monitel.ck11.exclusive-sub.aborted.v2");
             broadcast(list);
             closeAllSessions();
+            log.info("isAuth == false. Отмена подписки");
             return null;
         }
 
@@ -167,10 +184,12 @@ public class RawWebSocketHandler extends TextWebSocketHandler {
                     newValue = Math.sin(System.currentTimeMillis() / 1000.0 + counter.getAndIncrement()) * 100;
                 } else {
                     if (activeSignals.containsKey(channel)) {
-                        newValue = activeSignals.get(channel);
+                        if (activeSignals.get(channel).containsKey(i)) {
+                            newValue = activeSignals.get(channel).get(i);
+                        }
                     }
                 }
-                activeSignals.put(channel, newValue);
+                setSignalValue(channel, i, newValue, false);
 
                 SignalData data = new SignalData(channel, newValue);
 
@@ -283,7 +302,7 @@ public class RawWebSocketHandler extends TextWebSocketHandler {
     public void addSignal(String id) {
         log.debug("addSignal:{}", id);
         if (!activeSignals.containsKey(id)) {
-            activeSignals.put(id, 0.0);
+            activeSignals.put(id, new HashMap<>(Map.of(0, 0.0)));
         }
     }
 
