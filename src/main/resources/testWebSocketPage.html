@@ -210,6 +210,29 @@
         <button type="submit">Задать значение сигнала</button>
     </form>
 
+
+    <form method="POST" action="/api/signal-quality">
+        <label>
+            Uid сигнала (например, bf18dfc9-50b7-4a47-9c3f-5d4c69948675):
+            <input type="text" name="uid" required
+                   placeholder="bf18dfc9-50b7-4a47-9c3f-5d4c69948675">
+        </label>
+
+        <label>
+            Номер элемента (integer):
+            <input type="number" name="element" step="1" required
+                   placeholder="0" min="0">
+        </label>
+
+        <label>
+            Метка качества сигнала (integer, например 0-255):
+            <input type="number" name="value" step="1" required
+                   placeholder="2" min="0" max="4294967295">
+        </label>
+
+        <button type="submit">Задать метку качества</button>
+    </form>
+
     <div class="upload-form">
         <h3>📊 Загрузка CSV-файла</h3>
         <p><small>Разделитель: точка с запятой (;)</small></p>

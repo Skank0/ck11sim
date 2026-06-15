@@ -50,6 +50,24 @@ public class RestControllerCk11 {
         return ResponseEntity.ok("Сигнал '" + request.getUid() + "' создан. Подключайтесь к " + RawWebSocketHandler.TOPIC);
     }
 
+    @PostMapping("/api/signal-quality")
+    public ResponseEntity<String> changeQuality(@RequestParam String uid, @RequestParam Integer element, @RequestParam Long value) {
+        if (uid == null || uid.isBlank()) {
+            return ResponseEntity.badRequest().body("ID не может быть пустым");
+        }
+        if (element == null) {
+            return ResponseEntity.badRequest().body("element не может быть пустым");
+        }
+        if (value == null) {
+            return ResponseEntity.badRequest().body("value не может быть пустым");
+        }
+        rawWebSocketHandler.addSignalQuality(uid, element, value);
+        //return ResponseEntity.ok("Метка качества сигнала '" + uid + "' ["+ element + "]  задана равной " + value);
+        return ResponseEntity.status(303)
+                .location(URI.create("/"))
+                .build();
+    }
+
     // Удаление сигнала
     @DeleteMapping("/api/signal/{id}")
     public ResponseEntity<String> deleteSignal(@PathVariable String id) {

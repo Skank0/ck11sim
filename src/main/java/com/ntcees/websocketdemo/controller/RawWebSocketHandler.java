@@ -49,6 +49,9 @@ public class RawWebSocketHandler extends TextWebSocketHandler {
     // Хранилище активных сигналов: id -> текущее значение
     private final Map<String, Map<Integer, Double>> activeSignals = new ConcurrentHashMap<>();
 
+    // Хранилище сигналов, для которых нужна плохая метка качества: id -> текущее значение
+    private final Map<String, Map<Integer, Long>> signalsQualityManual = new ConcurrentHashMap<>();
+
     // Маппинг: sessionId -> каналы, на которые подписан клиент
     private static final Map<String, WebSocketSession> clientSubscriptions = new ConcurrentHashMap<>();
 
@@ -195,6 +198,11 @@ public class RawWebSocketHandler extends TextWebSocketHandler {
                 LocalDate date = LocalDate.now(); // Получаем сегодняшнюю дату
                 LocalDateTime midnight = date.atStartOfDay();
 
+                Map<Integer, Long> signalsQualityManualElement = null;
+                if (signalsQualityManual.containsKey(channel)) {
+                    signalsQualityManualElement = signalsQualityManual.get(channel);
+                }
+
                 for (int i = 0; i < count; i++) {
                     double newValue = 0;
                     if (isRand.get()) {
@@ -217,6 +225,12 @@ public class RawWebSocketHandler extends TextWebSocketHandler {
                         //data.setTimeStamp(Instant.ofEpochSecond (midnight.toEpochSecond(ZoneOffset.UTC) + 3600 * (meters2DaysCount - 1)).toString());
                         data.setTimeStamp(data.getTimeStamp());
                         data.setTimeStamp2(data.getTimeStamp());
+                    }
+
+                    if (signalsQualityManualElement != null) {
+                        if (signalsQualityManualElement.containsKey(i)) {
+                            data.setqCode(signalsQualityManualElement.get(i));
+                        }
                     }
 
                     if (sendToWebSocket) {
@@ -328,5 +342,15 @@ public class RawWebSocketHandler extends TextWebSocketHandler {
         log.debug("removeSignal:{}", id);
         activeSignals.remove(id);
     }
+
+    public void addSignalQuality(String id, Integer element, Long qualityValue) {
+        log.debug("addSignalQuality:{} {} {}", id, element, qualityValue);
+        if (!signalsQualityManual.containsKey(id)) {
+            signalsQualityManual.put(id, new HashMap<>(Map.of(element, qualityValue)));
+        } else {
+            signalsQualityManual.get(id).put(element, qualityValue);
+        }
+    }
+
 
 }
