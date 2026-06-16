@@ -24,10 +24,7 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.time.Instant;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
+import java.time.*;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
@@ -196,7 +193,7 @@ public class RawWebSocketHandler extends TextWebSocketHandler {
                 if (isPlans) count = meters2DaysCount;
 
                 LocalDate date = LocalDate.now(); // Получаем сегодняшнюю дату
-                LocalDateTime midnight = date.atStartOfDay();
+                long epoch = date.atStartOfDay(ZoneId.systemDefault()).toEpochSecond();
 
                 Map<Integer, Long> signalsQualityManualElement = null;
                 if (signalsQualityManual.containsKey(channel)) {
@@ -219,7 +216,7 @@ public class RawWebSocketHandler extends TextWebSocketHandler {
                     SignalData data = new SignalData(channel, newValue);
 
                     if (isPlans) {
-                        data.setTimeStamp(Instant.ofEpochSecond(midnight.toEpochSecond(ZoneOffset.UTC) + 3600 * i).toString());
+                        data.setTimeStamp(Instant.ofEpochSecond(epoch + 3600 * i).toString());
                         data.setTimeStamp2(data.getTimeStamp());
                     } else {
                         //data.setTimeStamp(Instant.ofEpochSecond (midnight.toEpochSecond(ZoneOffset.UTC) + 3600 * (meters2DaysCount - 1)).toString());
