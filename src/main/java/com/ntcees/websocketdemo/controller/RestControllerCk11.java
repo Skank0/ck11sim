@@ -27,6 +27,7 @@ import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -94,7 +95,36 @@ public class RestControllerCk11 {
     }
 
     @PostMapping("/auth/app/token")
-    public ResponseEntity<String> getToken(@RequestBody Map<String, Object> payload) {
+    public ResponseEntity<String> getToken(
+            @RequestBody(required = false) Map<String, Object> payload,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+
+        if (authHeader == null || !authHeader.startsWith("Basic ")) {
+            return ResponseEntity.status(401).body("Отсутствует Basic-авторизация");
+        }
+
+        // Декодируем base64
+        String base64Credentials = authHeader.substring("Basic ".length());
+        String credentials = new String(Base64.getDecoder().decode(base64Credentials));
+
+        // Разделяем username:password
+        String[] parts = credentials.split(":", 2);
+        if (parts.length != 2) {
+            return ResponseEntity.status(400).body("Неверный формат авторизации");
+        }
+
+        String username = parts[0];
+        String password = parts[1];
+
+        System.out.println("Username: " + username);
+        System.out.println("Password: " + password);
+
+        // Проверяем учетные данные
+
+        if (!username.equals("zelenin-as@oducz.so") || !password.equals("123")) {
+            return ResponseEntity.status(401).body("Неверные учетные данные");
+        }
+
         rawWebSocketHandler.setIsAuth(true);
         return sendJsonAnswer("../../13 linux/00_helps/server_answers/token.json");
     }
@@ -211,17 +241,17 @@ public class RestControllerCk11 {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
             }
 
-            if (testTimeoutServer.get() < 20) {
-                testTimeoutServer.getAndIncrement();
-            } else {
-                log.info("making timeout 15 sec...");
-                testTimeoutServer.set(0);
-                try {
-                    Thread.sleep(15000);
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
-            }
+            //if (testTimeoutServer.get() < 20) {
+            //    testTimeoutServer.getAndIncrement();
+            //} else {
+            //    log.info("making timeout 15 sec...");
+            //    testTimeoutServer.set(0);
+            //    try {
+            //        Thread.sleep(15000);
+            //    } catch (InterruptedException e) {
+            //        throw new RuntimeException(e);
+            //    }
+            //}
 
             if (testWriteErrors.get() < 3) {
                 log.info("imitate bad request send to sk11: {}", payload);
