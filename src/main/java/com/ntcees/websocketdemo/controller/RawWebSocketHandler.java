@@ -188,7 +188,7 @@ public class RawWebSocketHandler extends TextWebSocketHandler {
             if ( (isPlans && uidPlans.contains(channel)) ||
                  (!isPlans && !uidPlans.contains(channel))) {
 
-                int meters2DaysCount = 48;
+                int meters2DaysCount = 49;
                 int count = 1;
                 if (isPlans) count = meters2DaysCount;
 
