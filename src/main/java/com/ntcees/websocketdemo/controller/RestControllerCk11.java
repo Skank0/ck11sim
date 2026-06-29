@@ -253,15 +253,15 @@ public class RestControllerCk11 {
             //    }
             //}
 
-            if (testWriteErrors.get() < 3) {
-                log.info("imitate bad request send to sk11: {}", payload);
-                testWriteErrors.getAndIncrement();
-                return ResponseEntity.badRequest().body("{\"errors\":[]}");
-            } else {
+            //if (testWriteErrors.get() < 3) {
+            //    log.info("imitate bad request send to sk11: {}", payload);
+            //    testWriteErrors.getAndIncrement();
+            //    return ResponseEntity.badRequest().body("{\"errors\":[]}");
+            //} else {
                 log.info("send to sk11: {}", payload);
                 testWriteErrors.set(0);
                 return ResponseEntity.ok().body("{\"writed\":\"ok\"}");
-            }
+            //}
         }
     }
 

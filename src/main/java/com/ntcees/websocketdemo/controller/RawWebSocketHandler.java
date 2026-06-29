@@ -78,10 +78,10 @@ public class RawWebSocketHandler extends TextWebSocketHandler {
     @PostConstruct
     public void init() {
         // Запускаем генератор данных
-        schedulerCurrentMeters1.scheduleAtFixedRate(this::generateAndBroadcastSignals, 0, 2, TimeUnit.SECONDS);
-        schedulerCurrentMeters2.scheduleAtFixedRate(this::generateAndBroadcastSignalsPlans, 0, 10, TimeUnit.SECONDS);
+        schedulerCurrentMeters1.scheduleAtFixedRate(this::generateAndBroadcastSignals, 0, 5000, TimeUnit.MILLISECONDS);
+        schedulerCurrentMeters2.scheduleAtFixedRate(this::generateAndBroadcastSignalsPlans, 0, 1000, TimeUnit.MILLISECONDS);
         schedulerAuth.scheduleAtFixedRate(this::setIsAuthFalse, 12000, 12000, TimeUnit.SECONDS);
-        schedulerWebSocketCloser.scheduleAtFixedRate(this::closeAllWebSocketConnections, 0, 150, TimeUnit.SECONDS);
+        schedulerWebSocketCloser.scheduleAtFixedRate(this::closeAllWebSocketConnections, 0, 15000, TimeUnit.SECONDS);
 
         try {
             ClassLoader classLoader = getClass().getClassLoader();
@@ -183,7 +183,11 @@ public class RawWebSocketHandler extends TextWebSocketHandler {
 
         SignalValueList valueList = new SignalValueList();
         SignalDataList dataList = new SignalDataList();
+
+        //ограничение числа измерений в пакете
+        //AtomicInteger tekMeterCount = new AtomicInteger(5000);
         activeSignals.keySet().forEach(channel -> {
+            //if (tekMeterCount.get() <= 0) return;
 
             if ( (isPlans && uidPlans.contains(channel)) ||
                  (!isPlans && !uidPlans.contains(channel))) {
@@ -200,7 +204,13 @@ public class RawWebSocketHandler extends TextWebSocketHandler {
                     signalsQualityManualElement = signalsQualityManual.get(channel);
                 }
 
+                //Random random = new Random();
                 for (int i = 0; i < count; i++) {
+                    //генерация пакетов случайного размера
+                    //if (random.nextInt(100) < 80) {
+                    //    continue;
+                    //}
+
                     double newValue = 0;
                     if (isRand.get()) {
                         newValue = Math.sin(System.currentTimeMillis() / 1000.0 + counter.getAndIncrement()) * 100;
@@ -235,6 +245,10 @@ public class RawWebSocketHandler extends TextWebSocketHandler {
                     } else {
                         valueList.getValue().add(data);
                     }
+
+                    //if (tekMeterCount.decrementAndGet() == 0) {
+                    //    break;
+                    //}
                 }
             }
         });
